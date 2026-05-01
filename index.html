@@ -1003,6 +1003,63 @@ function delSnapshot(propId, idx) {
   navTo('detail', propId);
   setTimeout(() => switchTab('tracking'), 30);
 }
+// ============================================================
+// VIEW: PORTFOLIO
+// ============================================================
+function vPortfolio() {
+  const props = allProps().filter(p => p.status === 'acquired');
+
+  if (props.length === 0) return `
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
+      <div class="card" style="text-align:center;padding:60px 20px;border:2px dashed #e2e8f0;">
+        <div style="font-size:48px;margin-bottom:12px;">📁</div>
+        <div style="font-size:15px;font-weight:600;color:#64748b;">Noch keine Objekte im Bestand</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Setze ein Objekt auf "Im Bestand", um es hier zu verfolgen.</div>
+      </div>
+    </div>`;
+
+  let totInvest=0, totKM=0, totCFN=0;
+  const calcCache = props.map(p => { const c=calcProp(p.inputs); totInvest+=c.kpis.gesamt; totKM+=(p.inputs.kaltmiete||0); totCFN+=c.kpis.cfN1; return c; });
+
+  const cards = props.map((p, i) => {
+    const {kpis, rows} = calcCache[i];
+    const ek10 = rows[rows.length-1]?.eigenkapital || 0;
+    return `
+    <div class="card" onclick="navTo('detail','${p.id}');setTimeout(()=>switchTab('tracking'),60)" style="cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(37,99,235,0.1)'" onmouseout="this.style.boxShadow=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#1e293b;">${p.name}</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${p.address||'—'}</div>
+          ${p.acquiredAt?'<div style="font-size:12px;color:#94a3b8;">Seit '+p.acquiredAt+'</div>':''}
+        </div>
+        <span style="background:#dcfce7;color:#15803d;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;">Im Bestand</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Kaufpreis</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(p.inputs.kaufpreis||0)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Bruttomietrendite</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${PCT(kpis.brutto)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">CF/Monat (netto)</div><div class="${cf(kpis.cfN1)}" style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(kpis.cfN1)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Eigenkapital (Jahr 10)</div><div style="font-size:14px;font-weight:700;margin-top:2px;color:#2563eb;">${EUR(ek10)}</div></div>
+      </div>
+      <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;">
+        <span>${(p.events||[]).length} Ereignisse</span>
+        <span>${(p.annualSnapshots||[]).length} Jahresabrechnungen</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div>
+    <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;">
+      <div class="kpi"><div class="kpi-label">Objekte im Bestand</div><div class="kpi-value">${props.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Gesamtinvestition</div><div class="kpi-value" style="font-size:18px;">${EUR(totInvest)}</div></div>
+      <div class="kpi"><div class="kpi-label">Kaltmiete/Monat gesamt</div><div class="kpi-value" style="font-size:18px;">${EUR(totKM)}</div></div>
+      <div class="kpi"><div class="kpi-label">Portfolio CF/Monat (netto)</div><div class="kpi-value ${cf(totCFN)}" style="font-size:18px;">${EUR(totCFN)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${cards}</div>
+  </div>`;
+}
 
 // ============================================================
 // VIEW: STRATEGY CHECK (TAX OPTIMIZED AfA @ 3%)
