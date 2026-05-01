@@ -1049,60 +1049,58 @@ function vPortfolio() {
   </div>`;
 }
 function vStrategy() {
-  const s = STRAT_DATA; // Use our stored state
+  const s = STRAT_DATA; 
   const years = 10;
+  // Determine tax rate based on salary bracket
   const taxRate = s.salary > 66000 ? 0.42 : 0.32;
 
   const scalerVolume = s.salary * 10;
   const hunterVolume = s.price;
 
-  const calcWealth = (vol) => {
+  // Detailed Calculation Engine
+  const calcWealth = (vol, yieldP) => {
+    // 1. Appreciation (Wertsteigerung)
     const app = vol * (Math.pow(1 + s.app/100, years) - 1);
+    
+    // 2. Repayment (Tilgung)
     const rep = vol * (s.tilt/100) * years;
-    const tax = (vol * 0.02 * taxRate) * years;
-    return { app, rep, tax, total: app + rep + tax };
+    
+    // 3. Tax Effect (Steuervorteil/-last)
+    // Formula: (Rent - Interest - AfA) * TaxRate
+    const annualRent = vol * (yieldP / 100);
+    const annualInterest = vol * (s.int / 100);
+    const annualAfA = vol * 0.8 * 0.02; // 80% building share, 2% AfA
+    
+    const taxableProfit = annualRent - annualInterest - annualAfA;
+    const taxEffectPerYear = -(taxableProfit * taxRate); // Negative profit = Positive refund
+    const totalTaxEffect = taxEffectPerYear * years;
+
+    return { app, rep, tax: totalTaxEffect, total: app + rep + totalTaxEffect };
   };
 
-  const hunter = calcWealth(hunterVolume);
-  const scaler = calcWealth(scalerVolume);
+  const hunter = calcWealth(hunterVolume, 7); // 7% Yield
+  const scaler = calcWealth(scalerVolume, 4); // 4% Yield
 
   return `
   <div style="max-width:1000px;">
     <h1 style="font-size:24px;font-weight:800;color:#1e293b;margin-bottom:8px;">Strategie-Check: 10-Jahres-Fokus</h1>
     
+    <!-- Input Section with Berechnen Button -->
     <div class="card" style="margin-bottom:25px; background:#f8fafc; border:1px solid #e2e8f0;">
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:15px; margin-bottom:15px;">
-        <div>
-          <label class="label">JAHRESGEHALT BRUTTO (€)</label>
-          <input type="number" class="inp" value="${s.salary}" id="strat-salary">
-        </div>
-        <div>
-          <label class="label">Ø OBJEKTPREIS (€)</label>
-          <input type="number" class="inp" value="${s.price}" id="strat-price">
-        </div>
-        <div>
-          <label class="label">WERTSTEIGERUNG/JAHR (%)</label>
-          <input type="number" class="inp" value="${s.app}" id="strat-app">
-        </div>
-        <div>
-          <label class="label">SOLLZINS (%)</label>
-          <input type="number" class="inp" value="${s.int}" id="strat-int">
-        </div>
-        <div>
-          <label class="label">TILGUNG (%)</label>
-          <input type="number" class="inp" value="${s.tilt}" id="strat-tilt">
-        </div>
+        <div><label class="label">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${s.salary}" id="strat-salary"></div>
+        <div><label class="label">Ø OBJEKTPREIS (€)</label><input type="number" class="inp" value="${s.price}" id="strat-price"></div>
+        <div><label class="label">WERTSTEIGERUNG (%)</label><input type="number" class="inp" value="${s.app}" id="strat-app"></div>
+        <div><label class="label">SOLLZINS (%)</label><input type="number" class="inp" value="${s.int}" id="strat-int"></div>
+        <div><label class="label">TILGUNG (%)</label><input type="number" class="inp" value="${s.tilt}" id="strat-tilt"></div>
       </div>
-      <button onclick="runStrategyCalc()" class="btn-primary" style="width:100%; padding:12px; font-weight:700;">
-        Berechnen
-      </button>
+      <button onclick="runStrategyCalc()" class="btn-primary" style="width:100%; padding:12px; font-weight:700;">Berechnen</button>
     </div>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
       <!-- HUNTER CARD -->
       <div class="card" style="border-top:4px solid #ef4444;">
         <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (7% Rendite)</h3>
-        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Wartet 3 Jahre auf das perfekte Objekt.</p>
         <div style="background:#fef2f2; padding:15px; border-radius:6px; margin-bottom:15px;">
            <span style="font-size:12px;">Portfoliovolumen:</span><br>
            <strong style="font-size:22px;">${EUR(hunterVolume)}</strong>
@@ -1110,6 +1108,9 @@ function vStrategy() {
         <div style="font-size:14px; display:flex; flex-direction:column; gap:8px;">
            <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(hunter.app)}</span></div>
            <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(hunter.rep)}</span></div>
+           <div style="display:flex;justify-content:space-between; color:${hunter.tax < 0 ? '#ef4444' : '#16a34a'};">
+             <span>Steuereffekt (10J):</span><span>${EUR(hunter.tax)}</span>
+           </div>
            <div style="display:flex;justify-content:space-between; font-weight:700; border-top:1px solid #fee2e2; padding-top:10px; margin-top:5px; color:#b91c1c; font-size:16px;">
              <span>Gesamt-Gewinn:</span><span>${EUR(hunter.total)}</span>
            </div>
@@ -1119,7 +1120,6 @@ function vStrategy() {
       <!-- SCALER CARD -->
       <div class="card" style="border-top:4px solid #22c55e; background:#f0fdf4;">
         <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (4% Rendite)</h3>
-        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Nutzt 1000% Finanzierungskapazität sofort.</p>
         <div style="background:#dcfce7; padding:15px; border-radius:6px; margin-bottom:15px;">
            <span style="font-size:12px;">Portfoliovolumen (10x Gehalt):</span><br>
            <strong style="font-size:22px;">${EUR(scalerVolume)}</strong>
@@ -1127,21 +1127,14 @@ function vStrategy() {
         <div style="font-size:14px; display:flex; flex-direction:column; gap:8px;">
            <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(scaler.app)}</span></div>
            <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(scaler.rep)}</span></div>
-           <div style="display:flex;justify-content:space-between;"><span>Steuervorteil:</span><span>${EUR(scaler.tax)}</span></div>
+           <div style="display:flex;justify-content:space-between; color:#16a34a;">
+             <span>Steuervorteil (10J):</span><span>${EUR(scaler.tax)}</span>
+           </div>
            <div style="display:flex;justify-content:space-between; font-weight:800; border-top:1px solid #bbf7d0; padding-top:10px; margin-top:5px; color:#15803d; font-size:18px;">
              <span>Gesamt-Gewinn:</span><span>${EUR(scaler.total)}</span>
            </div>
         </div>
       </div>
-    </div>
-
-    <div class="card" style="margin-top:24px; background:#eff6ff; border:1px solid #bfdbfe;">
-      <h3 style="font-weight:800; color:#1e40af;">Ergebnis der Analyse</h3>
-      <p style="font-size:14px; color:#1e3a8a; line-height:1.5;">
-        Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren 
-        <b>${EUR(scaler.total - hunter.total)} mehr Vermögen</b> auf als der Jäger. 
-        Die "Macht der Masse" (Hebeleffekt) schlägt die Suche nach der maximalen Objektrendite.
-      </p>
     </div>
   </div>`;
 }
