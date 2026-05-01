@@ -1005,64 +1005,7 @@ function delSnapshot(propId, idx) {
 }
 
 // ============================================================
-// VIEW: PORTFOLIO
-// ============================================================
-function vPortfolio() {
-  const props = allProps().filter(p => p.status === 'acquired');
-
-  if (props.length === 0) return `
-    <div>
-      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
-      <div class="card" style="text-align:center;padding:60px 20px;border:2px dashed #e2e8f0;">
-        <div style="font-size:48px;margin-bottom:12px;">📁</div>
-        <div style="font-size:15px;font-weight:600;color:#64748b;">Noch keine Objekte im Bestand</div>
-        <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Setze ein Objekt auf "Im Bestand", um es hier zu verfolgen.</div>
-      </div>
-    </div>`;
-
-  let totInvest=0, totKM=0, totCFN=0;
-  const calcCache = props.map(p => { const c=calcProp(p.inputs); totInvest+=c.kpis.gesamt; totKM+=(p.inputs.kaltmiete||0); totCFN+=c.kpis.cfN1; return c; });
-
-  const cards = props.map((p, i) => {
-    const {kpis, rows} = calcCache[i];
-    const ek10 = rows[rows.length-1]?.eigenkapital || 0;
-    return `
-    <div class="card" onclick="navTo('detail','${p.id}');setTimeout(()=>switchTab('tracking'),60)" style="cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(37,99,235,0.1)'" onmouseout="this.style.boxShadow=''">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
-        <div>
-          <div style="font-size:16px;font-weight:700;color:#1e293b;">${p.name}</div>
-          <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${p.address||'—'}</div>
-          ${p.acquiredAt?'<div style="font-size:12px;color:#94a3b8;">Seit '+p.acquiredAt+'</div>':''}
-        </div>
-        <span style="background:#dcfce7;color:#15803d;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;">Im Bestand</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
-        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Kaufpreis</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(p.inputs.kaufpreis||0)}</div></div>
-        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Bruttomietrendite</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${PCT(kpis.brutto)}</div></div>
-        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">CF/Monat (netto)</div><div class="${cf(kpis.cfN1)}" style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(kpis.cfN1)}</div></div>
-        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Eigenkapital (Jahr 10)</div><div style="font-size:14px;font-weight:700;margin-top:2px;color:#2563eb;">${EUR(ek10)}</div></div>
-      </div>
-      <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;">
-        <span>${(p.events||[]).length} Ereignisse</span>
-        <span>${(p.annualSnapshots||[]).length} Jahresabrechnungen</span>
-      </div>
-    </div>`;
-  }).join('');
-
-  return `
-  <div>
-    <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;">
-      <div class="kpi"><div class="kpi-label">Objekte im Bestand</div><div class="kpi-value">${props.length}</div></div>
-      <div class="kpi"><div class="kpi-label">Gesamtinvestition</div><div class="kpi-value" style="font-size:18px;">${EUR(totInvest)}</div></div>
-      <div class="kpi"><div class="kpi-label">Kaltmiete/Monat gesamt</div><div class="kpi-value" style="font-size:18px;">${EUR(totKM)}</div></div>
-      <div class="kpi"><div class="kpi-label">Portfolio CF/Monat (netto)</div><div class="kpi-value ${cf(totCFN)}" style="font-size:18px;">${EUR(totCFN)}</div></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${cards}</div>
-  </div>`;
-}
-// ============================================================
-// VIEW: STRATEGY CHECK (CASCADING LOGIC FIX)
+// VIEW: STRATEGY CHECK (TAX OPTIMIZED AfA @ 3%)
 // ============================================================
 function vStrategy() {
   const salary = document.getElementById('strat-salary') ? parseFloat(document.getElementById('strat-salary').value) : STRAT_DATA.salary;
@@ -1077,13 +1020,20 @@ function vStrategy() {
   const hunterVol = price;
   const scalerVol = salary * 10;
 
+  // Internal Logic updated: 80% Building share * 3% AfA average
   const calcStats = (vol, yieldP) => {
     const app = vol * (Math.pow(1 + appRate/100, years) - 1);
     const rep = vol * (tiltRate/100) * years;
-    const annAfA = vol * 0.8 * 0.02; 
+    
+    // UPDATED: 3% average AfA on 80% of volume
+    const annAfA = vol * 0.8 * 0.03; 
     const annualInterest = vol * 0.9 * (intRate/100);
     const annualRent = vol * (yieldP/100);
+    
     const taxableIncome = annualRent - annualInterest - annAfA;
+    
+    // Tax benefit is the negative tax on the loss (shield) or positive tax on gain
+    // Multiplying by years for the 10-year total
     const taxEffect = -(taxableIncome * taxRate) * years;
 
     return { 
@@ -1098,21 +1048,18 @@ function vStrategy() {
   const sc = calcStats(scalerVol, 4);
   const wealthGap = sc.total - h.total;
 
-  // 3. UPDATED CASCADE LOGIC
   let cycles = [];
-  let currentVolume = scalerVol; // Stufe 1 starts at 10x Salary
+  let currentVolume = scalerVol; 
 
   for (let c = 1; c <= 3; c++) {
     let stats = calcStats(currentVolume, 4);
     let profit = stats.total;
-    
     cycles.push({
       ageRange: `${age + (c-1)*10} - ${age + c*10}`,
       buyingPower: currentVolume,
       cashAfterSale: profit,
-      nextVolume: currentVolume + profit // Stufe 2 is Stufe 1 Vol + Stufe 1 Profit
+      nextVolume: currentVolume + profit 
     });
-    
     currentVolume = currentVolume + profit;
   }
 
@@ -1148,7 +1095,7 @@ function vStrategy() {
         <div style="font-size: 14px; line-height: 2;">
             <div style="display:flex; justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(h.app)}</span></div>
             <div style="display:flex; justify-content:space-between;"><span>Tilgung:</span><span>${EUR(h.rep)}</span></div>
-            <div style="display:flex; justify-content:space-between;"><span>Steuervorteil:</span><span>- ${EUR(Math.abs(h.tax))}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Steuervorteil:</span><span class="${cf(h.tax)}">${h.tax > 0 ? '+ ' : ''}${EUR(h.tax)}</span></div>
             <div style="border-top: 1px solid #f1f5f9; margin-top: 10px; padding-top: 10px; display:flex; justify-content:space-between; color:#b91c1c; font-weight:bold;">
                 <span>Gesamt-Gewinn:</span><span>${EUR(h.total)}</span>
             </div>
@@ -1165,7 +1112,7 @@ function vStrategy() {
         <div style="font-size: 14px; line-height: 2;">
             <div style="display:flex; justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(sc.app)}</span></div>
             <div style="display:flex; justify-content:space-between;"><span>Tilgung:</span><span>${EUR(sc.rep)}</span></div>
-            <div style="display:flex; justify-content:space-between;"><span>Steuervorteil:</span><span>${EUR(sc.tax)}</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>Steuervorteil:</span><span class="${cf(sc.tax)}">${sc.tax > 0 ? '+ ' : ''}${EUR(sc.tax)}</span></div>
             <div style="border-top: 1px solid #f1f5f9; margin-top: 10px; padding-top: 10px; display:flex; justify-content:space-between; color:#15803d; font-weight:bold;">
                 <span>Gesamt-Gewinn:</span><span>${EUR(sc.total)}</span>
             </div>
