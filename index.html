@@ -249,14 +249,25 @@ const cf  = v => v >= 0 ? 'pos' : 'neg';
 // NAVIGATION
 // ============================================================
 function navTo(view, id=null) {
-  VIEW = view; PROP_ID = id;
-  if (view !== 'form') EDIT_ID = null;
+  VIEW = view; 
+  PROP_ID = id;
+
+  // UPDATED: If we are not in the form or strategy check, clear the Edit ID
+  if (view !== 'form' && view !== 'strategy') EDIT_ID = null;
+
   ACTIVE_TAB = 'prognose';
   destroyCharts();
+
   document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
-  const key = view === 'detail' ? 'dashboard' : view === 'portfolio-detail' ? 'portfolio' : view;
+
+  // UPDATED: Mapping the view to the correct sidebar highlight
+  const key = view === 'detail' ? 'dashboard' : 
+              view === 'portfolio-detail' ? 'portfolio' : 
+              view === 'strategy' ? 'strategy' : view; // Added strategy here
+
   const nav = document.getElementById('nav-' + key);
   if (nav) nav.classList.add('active');
+
   renderApp();
   window.scrollTo(0,0);
   return false;
