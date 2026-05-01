@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Immobilien Analyzer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .sidebar-link { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:6px; font-size:14px; color:#cbd5e1; text-decoration:none; }
+    .sidebar-link:hover { background:rgba(255,255,255,0.08); }
+    .sidebar-link.active { background:rgba(59,130,246,0.25); color:#93c5fd; font-weight:600; }
+    .label { display:block; font-size:11px; font-weight:700; color:#6b7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em; }
+    .inp { display:block; width:100%; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px; font-size:14px; outline:none; background:#fff; }
+    .inp:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,0.12); }
+    .inp[readonly] { background:#f9fafb; color:#6b7280; }
+    .tab-btn { padding:10px 20px; font-size:13px; font-weight:500; color:#6b7280; border-bottom:2px solid transparent; cursor:pointer; background:none; border-top:none; border-left:none; border-right:none; }
+    .tab-btn:hover { color:#374151; }
+    .tab-btn.active { border-bottom-color:#3b82f6; color:#2563eb; font-weight:700; }
+    .kpi { background:#fff; border-radius:12px; padding:16px; border:1px solid #f3f4f6; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+    .kpi-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:#9ca3af; }
+    .kpi-value { font-size:24px; font-weight:800; margin-top:4px; color:#1e293b; }
+    .kpi-sub { font-size:12px; color:#9ca3af; margin-top:2px; }
+    .btn-primary { background:#2563eb; color:#fff; padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; border:none; cursor:pointer; }
+    .btn-primary:hover { background:#1d4ed8; }
+    .btn-secondary { background:#f3f4f6; color:#374151; padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600; border:none; cursor:pointer; }
+    .btn-secondary:hover { background:#e5e7eb; }
+    .card { background:#fff; border-radius:12px; padding:20px; border:1px solid #f3f4f6; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+    .pos { color:#16a34a; } .neg { color:#dc2626; }
+    table { border-collapse:collapse; width:100%; }
+    th { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:#9ca3af; padding:10px 12px; text-align:right; background:#f9fafb; border-bottom:1px solid #e5e7eb; }
+    th:first-child { text-align:left; }
+    td { padding:8px 12px; font-size:13px; text-align:right; border-bottom:1px solid #f3f4f6; }
+    td:first-child { text-align:left; }
+    tr:hover td { background:#fafafa; }
+  </style>
+</head>
+<body style="background:#f1f5f9; font-family:system-ui,-apple-system,sans-serif; display:flex; min-height:100vh;">
+
+<!-- SIDEBAR -->
+<aside style="width:220px; background:#0f172a; min-height:100vh; position:fixed; top:0; left:0; display:flex; flex-direction:column; z-index:100;">
+  <div style="padding:20px 16px; border-bottom:1px solid rgba(255,255,255,0.08);">
+    <div style="font-size:18px; font-weight:800; color:#60a5fa;">🏠 Immobilien</div>
+    <div style="font-size:11px; color:#475569; margin-top:2px;">Analyzer v1.0</div>
+  </div>
+  <nav style="flex:1; padding:12px 8px; display:flex; flex-direction:column; gap:2px;">
+    <a href="#" onclick="return navTo('dashboard')" id="nav-dashboard" class="sidebar-link">📊 Dashboard</a>
+    <a href="#" onclick="return navTo('form')" id="nav-form" class="sidebar-link">➕ Neues Objekt</a>
+    <a href="#" onclick="return navTo('portfolio')" id="nav-portfolio" class="sidebar-link">📁 Portfolio</a>
+  </nav>
+  <div style="padding:12px 8px; border-top:1px solid rgba(255,255,255,0.08); display:flex; flex-direction:column; gap:6px;">
+    <button onclick="doExport()" style="width:100%; background:rgba(255,255,255,0.06); color:#94a3b8; border:none; padding:8px; border-radius:6px; font-size:12px; cursor:pointer;">⬆ Exportieren</button>
+    <label style="width:100%; cursor:pointer;">
+      <span style="display:block; background:rgba(255,255,255,0.06); color:#94a3b8; padding:8px; border-radius:6px; font-size:12px; text-align:center;">⬇ Importieren</span>
+      <input type="file" accept=".json" onchange="doImport(event)" style="display:none;">
+    </label>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main style="margin-left:220px; flex:1; padding:28px 32px; min-height:100vh;">
+  <div id="app"></div>
+</main>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const DB_KEY = 'immobilien_v1';
+
+const BUNDESLAENDER = [
+  {name:'Bayern', gew:3.5}, {name:'Baden-Württemberg', gew:5.0},
+  {name:'Berlin', gew:6.0}, {name:'Brandenburg', gew:6.5},
+  {name:'Bremen', gew:5.0}, {name:'Hamburg', gew:5.5},
+  {name:'Hessen', gew:6.0}, {name:'Mecklenburg-Vorpommern', gew:6.0},
+  {name:'Niedersachsen', gew:5.0}, {name:'Nordrhein-Westfalen', gew:6.5},
+  {name:'Rheinland-Pfalz', gew:5.0}, {name:'Saarland', gew:6.5},
+  {name:'Sachsen', gew:5.5}, {name:'Sachsen-Anhalt', gew:5.0},
+  {name:'Schleswig-Holstein', gew:6.5}, {name:'Thüringen', gew:6.5},
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let VIEW = 'dashboard';
+let PROP_ID = null;
+let EDIT_ID = null;
+let ACTIVE_TAB = 'prognose';
+let CHARTS = {};
+
+// ============================================================
+// DATA LAYER
+// ============================================================
+function db() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || {properties:[]}; }
+  catch(e) { return {properties:[]}; }
+}
+function dbSave(d) { localStorage.setItem(DB_KEY, JSON.stringify(d)); }
+function allProps() { return db().properties; }
+function getProp(id) { return db().properties.find(p => p.id === id); }
+function saveProp(p) {
+  const d = db();
+  const i = d.properties.findIndex(x => x.id === p.id);
+  if (i >= 0) d.properties[i] = p; else d.properties.push(p);
+  dbSave(d);
+}
+function delProp(id) {
+  const d = db(); d.properties = d.properties.filter(p => p.id !== id); dbSave(d);
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function doExport() {
+  const b = new Blob([JSON.stringify(db(), null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'immobilien_backup_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+function doImport(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!Array.isArray(d.properties)) throw new Error('Ungültiges Format');
+      dbSave(d);
+      alert('✅ Import erfolgreich: ' + d.properties.length + ' Objekte geladen.');
+      navTo('dashboard');
+    } catch(err) { alert('❌ Importfehler: ' + err.message); }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+}
+
+// ============================================================
+// CALCULATION ENGINE
+// ============================================================
+function amortize(betrag, sollzinsP, tilgungP, years) {
+  if (betrag <= 0) return Array.from({length:years}, (_,i) => ({year:i+1,zinsen:0,tilgung:0,restschuld:0}));
+  const annM = betrag * (sollzinsP + tilgungP) / 100 / 12;
+  const rateM = sollzinsP / 100 / 12;
+  let rs = betrag;
+  const out = [];
+  for (let yr = 1; yr <= years; yr++) {
+    let z = 0, t = 0;
+    for (let m = 0; m < 12; m++) {
+      if (rs <= 0) break;
+      const zm = rs * rateM;
+      const tm = Math.min(annM - zm, rs);
+      z += zm; t += tm; rs = Math.max(0, rs - tm);
+    }
+    out.push({year:yr, zinsen:z, tilgung:t, restschuld:rs});
+  }
+  return out;
+}
+
+function calcNK(kp, gewP, makP, notP) {
+  const g = kp * gewP / 100, m = kp * makP / 100, n = kp * notP / 100;
+  return {gew:g, makler:m, notar:n, total:g+m+n};
+}
+
+function calcProp(inp, years=10) {
+  const kp    = inp.kaufpreis        || 0;
+  const kMöbel= inp.kaufpreisMöbel   || 0;
+  const eau   = inp.erhaltungsaufwand|| 0;
+  const gewP  = inp.gewSteuerP       ?? 3.5;
+  const makP  = inp.maklerP          ?? 3.57;
+  const notP  = inp.notarP           ?? 1.5;
+  const ek    = inp.eigenkapital     || 0;
+  const soll  = inp.sollzinsP        ?? 3.5;
+  const til   = inp.tilgungP         ?? 2;
+  const km    = inp.kaltmiete        || 0;
+  const hg    = inp.hausgeld         || 0;
+  const leer  = inp.leerstandP       ?? 2;
+  const mstg  = inp.mietsteigerungP  ?? 2;
+  const sk    = inp.sonstigeKosten   || 0;
+  const afaR  = inp.afaRateP         ?? 2;
+  const gbA   = inp.gebäudeanteilP   ?? 80;
+  const gst   = inp.grenzsteuersatzP ?? 42;
+  const wstg  = inp.wertsteigerungP  ?? 2;
+
+  const kpBase    = kp - kMöbel - eau;          // NK-Bemessungsgrundlage
+  const nk        = calcNK(kpBase, gewP, makP, notP);
+  const gesamt    = kp + eau + nk.total;         // Gesamtinvestition
+  const darlehen  = Math.max(0, gesamt - ek);
+  const kpWohnung = kp - kMöbel;                 // AfA-Basis (Wohnung ohne Möbel)
+  const gbWert    = kpWohnung * gbA / 100;
+  const afaJ      = gbWert * afaR / 100;
+  const afaMöbelJ = kMöbel > 0 ? kMöbel / 10 : 0;
+  const eauLimit  = gbWert * 0.15;
+  const eauWarning= eau > 0 && eau > eauLimit;
+  const am        = amortize(darlehen, soll, til, years);
+
+  // Yields
+  const jahrKM = km * 12;
+  const brutto = kp > 0 ? jahrKM / kp * 100 : 0;
+  const netto  = gesamt > 0 ? (jahrKM - hg*12) / gesamt * 100 : 0;
+
+  // Year 1 monthly KPIs
+  const z1m   = am[0] ? am[0].zinsen / 12 : 0;
+  const km1   = km * (1 - leer/100);
+  const cfOp1 = km1 - z1m - hg - sk;
+  const zveJ1 = km1*12 - (am[0]?.zinsen||0) - afaJ - afaMöbelJ - hg*12 - sk*12 - eau;
+  const stw1  = -zveJ1 * gst / 100;
+  const cfN1  = cfOp1 + stw1/12;
+
+  // 10-year table
+  let cumCF = 0;
+  const rows = am.map((a, i) => {
+    const fM       = Math.pow(1 + mstg/100, i);
+    const lF       = 1 - leer/100;
+    const mJ       = km * 12 * fM * lF;
+    const hgJ      = hg * 12 * Math.pow(1 + 0.015, i);
+    const skJ      = sk * 12;
+    const eauThisY = i === 0 ? eau : 0;
+    const cfO      = mJ - a.zinsen - hgJ - skJ;
+    const zve      = mJ - a.zinsen - afaJ - afaMöbelJ - hgJ - skJ - eauThisY;
+    const stw      = -zve * gst / 100;
+    const cfN      = cfO + stw;
+    cumCF += cfN;
+    const imoW = kp * Math.pow(1 + wstg/100, a.year);
+    return {
+      year:a.year, miete:mJ, hausgeld:hgJ, zinsen:a.zinsen,
+      tilgung:a.tilgung, sonstige:skJ, cfOp:cfO, afaJ, afaMöbelJ,
+      eauThisY, steuerwirkung:stw, cfNetto:cfN, cumCF,
+      restschuld:a.restschuld, immowert:imoW,
+      eigenkapital: imoW - a.restschuld,
+    };
+  });
+
+  return {
+    kpis:{gesamt, darlehen, ek, brutto, netto, cfOp1, cfN1,
+          afaJ, afaMöbelJ, eau, eauWarning, eauLimit,
+          steuerersparnis1: Math.max(0, stw1), nk},
+    rows,
+  };
+}
+
+// ============================================================
+// FORMATTERS
+// ============================================================
+const EUR = v => new Intl.NumberFormat('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0}).format(v);
+const PCT = v => v.toFixed(2).replace('.',',') + '\u00A0%';
+const cf  = v => v >= 0 ? 'pos' : 'neg';
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navTo(view, id=null) {
+  VIEW = view; PROP_ID = id;
+  if (view !== 'form') EDIT_ID = null;
+  ACTIVE_TAB = 'prognose';
+  destroyCharts();
+  document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+  const key = view === 'detail' ? 'dashboard' : view === 'portfolio-detail' ? 'portfolio' : view;
+  const nav = document.getElementById('nav-' + key);
+  if (nav) nav.classList.add('active');
+  renderApp();
+  window.scrollTo(0,0);
+  return false;
+}
+
+function destroyCharts() {
+  Object.values(CHARTS).forEach(c => { try { c.destroy(); } catch(e){} });
+  CHARTS = {};
+}
+
+function renderApp() {
+  const el = document.getElementById('app');
+  if      (VIEW === 'dashboard') el.innerHTML = vDashboard();
+  else if (VIEW === 'form')      { el.innerHTML = vForm(); postRenderForm(); }
+  else if (VIEW === 'detail')    { el.innerHTML = vDetail(); }
+  else if (VIEW === 'portfolio') el.innerHTML = vPortfolio();
+}
+
+// ============================================================
+// VIEW: DASHBOARD
+// ============================================================
+function vDashboard() {
+  const props = allProps();
+  const acq   = props.filter(p => p.status === 'acquired');
+  let totCFN  = 0;
+  acq.forEach(p => { totCFN += calcProp(p.inputs).kpis.cfN1; });
+
+  const cards = props.map(p => {
+    const {kpis} = calcProp(p.inputs);
+    const badge = p.status === 'acquired'
+      ? '<span style="background:#dcfce7;color:#15803d;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;">Im Bestand</span>'
+      : '<span style="background:#fef9c3;color:#854d0e;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600;">In Prüfung</span>';
+    return `
+    <div class="card" onclick="navTo('detail','${p.id}')" style="cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(37,99,235,0.1)'" onmouseout="this.style.boxShadow=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#1e293b;">${p.name}</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${p.address||'—'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${badge}
+          <button onclick="event.stopPropagation();editProp('${p.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;padding:2px 4px;" title="Bearbeiten">✏</button>
+          <button onclick="event.stopPropagation();confirmDel('${p.id}')" style="background:none;border:none;cursor:pointer;color:#94a3b8;font-size:16px;padding:2px 4px;" title="Löschen">🗑</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Kaufpreis</div><div style="font-size:15px;font-weight:700;margin-top:2px;">${EUR(p.inputs.kaufpreis||0)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Bruttomietrendite</div><div style="font-size:15px;font-weight:700;margin-top:2px;">${PCT(kpis.brutto)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">CF/Monat (netto)</div><div class="${cf(kpis.cfN1)}" style="font-size:15px;font-weight:700;margin-top:2px;">${EUR(kpis.cfN1)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const empty = `<div class="card" style="text-align:center;padding:60px 20px;border:2px dashed #e2e8f0;">
+    <div style="font-size:48px;margin-bottom:12px;">🏠</div>
+    <div style="font-size:16px;font-weight:600;color:#64748b;">Noch keine Objekte</div>
+    <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Klicke auf "+ Neues Objekt" um zu beginnen</div>
+  </div>`;
+
+  return `
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <h1 style="font-size:24px;font-weight:800;color:#1e293b;">Dashboard</h1>
+      <button class="btn-primary" onclick="navTo('form')">+ Neues Objekt</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;">
+      <div class="kpi"><div class="kpi-label">Gesamt Objekte</div><div class="kpi-value">${props.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Im Bestand</div><div class="kpi-value">${acq.length}</div></div>
+      <div class="kpi"><div class="kpi-label">In Prüfung</div><div class="kpi-value">${props.length - acq.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Portfolio CF/Monat (netto)</div><div class="kpi-value ${cf(totCFN)}">${EUR(totCFN)}</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      ${props.length === 0 ? empty : cards}
+    </div>
+  </div>`;
+}
+
+function editProp(id) { EDIT_ID = id; navTo('form'); }
+function confirmDel(id) {
+  const p = getProp(id);
+  if (confirm('Objekt "' + p.name + '" wirklich löschen?')) { delProp(id); renderApp(); }
+}
+
+// ============================================================
+// VIEW: FORM
+// ============================================================
+function vForm() {
+  const p   = EDIT_ID ? getProp(EDIT_ID) : null;
+  const inp = p ? p.inputs : {};
+  const blOpts = BUNDESLAENDER.map(b =>
+    `<option value="${b.name}|${b.gew}" ${inp.bundesland===b.name?'selected':''}>${b.name} (${b.gew}%)</option>`
+  ).join('');
+
+  return `
+  <div style="max-width:760px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <button class="btn-secondary" onclick="navTo('dashboard')">← Zurück</button>
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;">${p ? 'Objekt bearbeiten' : 'Neues Objekt analysieren'}</h1>
+    </div>
+
+    <form id="prop-form" onsubmit="handleSubmit(event)" style="display:flex;flex-direction:column;gap:20px;">
+
+      <!-- A: Grunddaten -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">🏠 Grunddaten</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div><label class="label">Objektname *</label><input name="name" class="inp" type="text" required value="${p?.name||''}" placeholder="z.B. München Hindelang"></div>
+          <div><label class="label">Adresse</label><input name="address" class="inp" type="text" value="${p?.address||''}" placeholder="Straße, PLZ Ort"></div>
+          <div>
+            <label class="label">Kaufpreis (€) *</label>
+            <input name="kaufpreis" class="inp" type="number" required min="0" step="1000" value="${inp.kaufpreis||''}" placeholder="450000" oninput="liveCalc()">
+          </div>
+          <div><label class="label">Baujahr</label><input name="baujahr" class="inp" type="number" min="1800" max="2030" value="${inp.baujahr||''}" placeholder="1990"></div>
+          <div>
+            <label class="label">Status</label>
+            <select name="status" class="inp" onchange="toggleAcqDate(this)">
+              <option value="pipeline" ${(p?.status||'pipeline')==='pipeline'?'selected':''}>🔍 In Prüfung</option>
+              <option value="acquired" ${p?.status==='acquired'?'selected':''}>✅ Im Bestand</option>
+            </select>
+          </div>
+          <div id="acq-date-wrap" style="${(p?.status||'pipeline')!=='acquired'?'display:none':''}">
+            <label class="label">Kaufdatum</label>
+            <input name="acquiredAt" class="inp" type="date" value="${p?.acquiredAt||''}">
+          </div>
+        </div>
+      </div>
+
+      <!-- B: Kaufnebenkosten -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">📋 Kaufnebenkosten</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+          <div>
+            <label class="label">Bundesland</label>
+            <select name="bundesland" class="inp" onchange="applyBL(this)">${blOpts}</select>
+          </div>
+          <div><label class="label">Grunderwerbsteuer (%)</label><input name="gewSteuerP" class="inp" type="number" step="0.1" min="0" max="10" value="${inp.gewSteuerP??3.5}" oninput="liveCalc()"></div>
+          <div><label class="label">Maklercourtage (%)</label><input name="maklerP" class="inp" type="number" step="0.01" min="0" max="10" value="${inp.maklerP??3.57}" oninput="liveCalc()"></div>
+          <div><label class="label">Notar + Grundbuch (%)</label><input name="notarP" class="inp" type="number" step="0.1" min="0" max="5" value="${inp.notarP??1.5}" oninput="liveCalc()"></div>
+          <div style="grid-column:span 2"><label class="label">Nebenkosten gesamt</label><input id="nk-out" class="inp" readonly value="—"></div>
+        </div>
+      </div>
+
+      <!-- C: Finanzierung -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">🏦 Finanzierung</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div><label class="label">Eigenkapital (€)</label><input name="eigenkapital" class="inp" type="number" step="1000" min="0" value="${inp.eigenkapital||''}" placeholder="100000" oninput="liveCalc()"></div>
+          <div><label class="label">Darlehen (€) <span style="font-weight:400;color:#9ca3af;">(auto)</span></label><input id="darl-out" class="inp" readonly value="—"></div>
+          <div><label class="label">Sollzins p.a. (%)</label><input name="sollzinsP" class="inp" type="number" step="0.01" min="0" max="15" value="${inp.sollzinsP??3.5}" oninput="liveCalc()"></div>
+          <div><label class="label">Tilgung p.a. (%)</label><input name="tilgungP" class="inp" type="number" step="0.1" min="0.5" max="10" value="${inp.tilgungP??2}" oninput="liveCalc()"></div>
+        </div>
+        <div id="ann-out" style="margin-top:12px;background:#eff6ff;border-radius:8px;padding:10px 14px;font-size:13px;color:#2563eb;font-weight:600;display:none;"></div>
+      </div>
+
+      <!-- D: Mieteinnahmen -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">💶 Mieteinnahmen & Kosten</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div><label class="label">Kaltmiete/Monat (€)</label><input name="kaltmiete" class="inp" type="number" step="10" min="0" value="${inp.kaltmiete||''}" placeholder="1200" oninput="liveCalc()"></div>
+          <div><label class="label">Hausgeld / Wohngeld/Monat (€)</label><input name="hausgeld" class="inp" type="number" step="10" min="0" value="${inp.hausgeld||''}" placeholder="350" oninput="liveCalc()"></div>
+          <div><label class="label">Leerstandsquote (%/Jahr)</label><input name="leerstandP" class="inp" type="number" step="0.5" min="0" max="30" value="${inp.leerstandP??2}" oninput="liveCalc()"></div>
+          <div><label class="label">Mietsteigerung p.a. (%)</label><input name="mietsteigerungP" class="inp" type="number" step="0.1" min="0" max="10" value="${inp.mietsteigerungP??2}" oninput="liveCalc()"></div>
+          <div style="grid-column:span 2"><label class="label">Sonstige nicht-umlagefähige Kosten/Monat (€)</label><input name="sonstigeKosten" class="inp" type="number" step="10" min="0" value="${inp.sonstigeKosten||0}" placeholder="0" oninput="liveCalc()"></div>
+        </div>
+      </div>
+
+      <!-- E: AfA & Steuern -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">📉 AfA & Steuern</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <label class="label">AfA-Typ</label>
+            <select name="afaType" class="inp" onchange="applyAfaType(this)">
+              <option value="2"    ${String(inp.afaRateP??2)==='2'?'selected':''}>Standard 2% (§7 Abs.4 EStG, ab 1925)</option>
+              <option value="2.5"  ${String(inp.afaRateP)==='2.5'?'selected':''}>Erhöht 2,5% (vor 1925)</option>
+              <option value="5"    ${String(inp.afaRateP)==='5'?'selected':''}>Sonder-AfA 5% (§7b EStG Neubau)</option>
+              <option value="7"    ${String(inp.afaRateP)==='7'?'selected':''}>Denkmal-AfA 7% (erste 8 Jahre)</option>
+              <option value="custom">Benutzerdefiniert</option>
+            </select>
+          </div>
+          <div><label class="label">AfA-Satz (%/Jahr)</label><input id="afa-rate" name="afaRateP" class="inp" type="number" step="0.1" min="0" max="25" value="${inp.afaRateP??2}" oninput="liveCalc()"></div>
+          <div><label class="label">Gebäudeanteil am Kaufpreis (%)</label><input name="gebäudeanteilP" class="inp" type="number" step="1" min="0" max="100" value="${inp.gebäudeanteilP??80}" oninput="liveCalc()"></div>
+          <div><label class="label">Persönlicher Grenzsteuersatz (%)</label><input name="grenzsteuersatzP" class="inp" type="number" step="1" min="0" max="45" value="${inp.grenzsteuersatzP??42}" oninput="liveCalc()"></div>
+        </div>
+      </div>
+
+      <!-- F: Wertsteigerung -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:16px;">📈 Annahmen Wertsteigerung</h3>
+        <div style="max-width:300px;">
+          <label class="label">Jährliche Wertsteigerung p.a. (%)</label>
+          <input name="wertsteigerungP" class="inp" type="number" step="0.1" min="0" max="15" value="${inp.wertsteigerungP??2}" oninput="liveCalc()">
+        </div>
+      </div>
+
+      <!-- G: Sonderposten -->
+      <div class="card">
+        <h3 style="font-size:14px;font-weight:700;color:#374151;margin-bottom:4px;">🛠 Sonderposten (optional)</h3>
+        <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Beide Felder sind optional. Bei Eingabe passen sich NK-Basis, AfA-Berechnung und Steuerwirkung automatisch an.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <label class="label">Kaufpreis Möbel (€)</label>
+            <input name="kaufpreisMöbel" class="inp" type="number" step="100" min="0" value="${inp.kaufpreisMöbel||''}" placeholder="z.B. 12000" oninput="liveCalc()">
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">AfA über 10 Jahre (€/Jahr = Betrag ÷ 10) · wird aus NK-Basis herausgerechnet</div>
+          </div>
+          <div>
+            <label class="label">Erhaltungsaufwand (€) <span style="font-weight:400;color:#9ca3af;">§6 Abs.1 Nr.1a EStG</span></label>
+            <input name="erhaltungsaufwand" class="inp" type="number" step="500" min="0" value="${inp.erhaltungsaufwand||''}" placeholder="z.B. 50500" oninput="liveCalc()">
+            <div style="font-size:11px;color:#64748b;margin-top:4px;">Sofort abziehbar in Jahr 1 · reduziert NK-Bemessungsgrundlage</div>
+          </div>
+        </div>
+        <div id="eau-warning" style="display:none;margin-top:12px;background:#fef9c3;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;">
+          ⚠️ <strong>Achtung – anschaffungsnahe Herstellungskosten:</strong> Der Erhaltungsaufwand übersteigt 15 % des Gebäudewerts. Gemäß §6 Abs. 1 Nr. 1a EStG müssen Renovierungskosten, die innerhalb von 3 Jahren nach Erwerb 15 % des Gebäude-Anschaffungswerts übersteigen, aktiviert und über die AfA abgeschrieben werden (nicht sofort abzugsfähig).
+        </div>
+      </div>
+
+      <!-- Live Preview -->
+      <div id="preview-box" style="display:none;background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:1px solid #bfdbfe;border-radius:12px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;color:#1d4ed8;margin-bottom:12px;">⚡ Sofortvorschau</div>
+        <div id="preview-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+      </div>
+
+      <!-- Submit -->
+      <div style="display:flex;gap:12px;">
+        <button type="submit" class="btn-primary">${p ? '💾 Änderungen speichern' : '📊 Analyse speichern & anzeigen'}</button>
+        <button type="button" class="btn-secondary" onclick="navTo('dashboard')">Abbrechen</button>
+      </div>
+
+    </form>
+  </div>`;
+}
+
+function postRenderForm() {
+  const statusSel = document.querySelector('[name="status"]');
+  if (statusSel) statusSel.addEventListener('change', function() {
+    document.getElementById('acq-date-wrap').style.display = this.value === 'acquired' ? '' : 'none';
+  });
+  const afaSel = document.querySelector('[name="afaType"]');
+  const afaInp = document.getElementById('afa-rate');
+  if (afaSel && afaInp) afaInp.readOnly = afaSel.value !== 'custom';
+  setTimeout(liveCalc, 80);
+}
+
+function applyBL(sel) {
+  const rate = sel.value.split('|')[1];
+  const gInp = document.querySelector('[name="gewSteuerP"]');
+  if (gInp) { gInp.value = rate; liveCalc(); }
+}
+
+function applyAfaType(sel) {
+  const ri = document.getElementById('afa-rate');
+  if (!ri) return;
+  if (sel.value !== 'custom') { ri.value = sel.value; ri.readOnly = true; }
+  else ri.readOnly = false;
+  liveCalc();
+}
+
+function toggleAcqDate(sel) {
+  const w = document.getElementById('acq-date-wrap');
+  if (w) w.style.display = sel.value === 'acquired' ? '' : 'none';
+}
+
+function getFormInp() {
+  const f = document.getElementById('prop-form');
+  if (!f) return {};
+  const fd = new FormData(f);
+  return {
+    kaufpreis:        parseFloat(fd.get('kaufpreis'))        || 0,
+    baujahr:          parseInt(fd.get('baujahr'))            || null,
+    gewSteuerP:       parseFloat(fd.get('gewSteuerP'))       ?? 3.5,
+    maklerP:          parseFloat(fd.get('maklerP'))          ?? 3.57,
+    notarP:           parseFloat(fd.get('notarP'))           ?? 1.5,
+    eigenkapital:     parseFloat(fd.get('eigenkapital'))     || 0,
+    sollzinsP:        parseFloat(fd.get('sollzinsP'))        ?? 3.5,
+    tilgungP:         parseFloat(fd.get('tilgungP'))         ?? 2,
+    kaltmiete:        parseFloat(fd.get('kaltmiete'))        || 0,
+    hausgeld:         parseFloat(fd.get('hausgeld'))         || 0,
+    leerstandP:       parseFloat(fd.get('leerstandP'))       ?? 2,
+    mietsteigerungP:  parseFloat(fd.get('mietsteigerungP'))  ?? 2,
+    sonstigeKosten:   parseFloat(fd.get('sonstigeKosten'))   || 0,
+    afaRateP:         parseFloat(fd.get('afaRateP'))         ?? 2,
+    gebäudeanteilP:   parseFloat(fd.get('gebäudeanteilP'))   ?? 80,
+    grenzsteuersatzP: parseFloat(fd.get('grenzsteuersatzP')) ?? 42,
+    wertsteigerungP:  parseFloat(fd.get('wertsteigerungP'))  ?? 2,
+    bundesland:       (fd.get('bundesland')||'').split('|')[0],
+    kaufpreisMöbel:   parseFloat(fd.get('kaufpreisMöbel'))   || 0,
+    erhaltungsaufwand:parseFloat(fd.get('erhaltungsaufwand'))|| 0,
+  };
+}
+
+function liveCalc() {
+  const inp = getFormInp();
+  if (!inp.kaufpreis) return;
+  const {kpis} = calcProp(inp);
+
+  // NK
+  const nkEl = document.getElementById('nk-out');
+  if (nkEl) nkEl.value = EUR(kpis.nk.total) + '  (GEW: ' + EUR(kpis.nk.gew) + ', Makler: ' + EUR(kpis.nk.makler) + ', Notar: ' + EUR(kpis.nk.notar) + ')';
+
+  // EAU warning
+  const eauWarn = document.getElementById('eau-warning');
+  if (eauWarn) eauWarn.style.display = kpis.eauWarning ? '' : 'none';
+
+  // Darlehen
+  const daEl = document.getElementById('darl-out');
+  if (daEl) daEl.value = EUR(kpis.darlehen);
+
+  // Annuität
+  const annEl = document.getElementById('ann-out');
+  if (annEl && kpis.darlehen > 0) {
+    const annM = kpis.darlehen * ((inp.sollzinsP??3.5) + (inp.tilgungP??2)) / 100 / 12;
+    annEl.textContent = 'Monatliche Annuität: ' + EUR(annM) + '  (Zins + Tilgung)';
+    annEl.style.display = 'block';
+  }
+
+  // Preview KPIs
+  if (inp.kaltmiete) {
+    document.getElementById('preview-box').style.display = '';
+    document.getElementById('preview-kpis').innerHTML = [
+      {l:'Bruttomietrendite', v:PCT(kpis.brutto), c:''},
+      {l:'Nettomietrendite',  v:PCT(kpis.netto),  c:''},
+      {l:'CF/Monat (operativ)', v:EUR(kpis.cfOp1), c:cf(kpis.cfOp1)},
+      {l:'CF/Monat (netto)', v:EUR(kpis.cfN1), c:cf(kpis.cfN1), sub:'inkl. Steuervorteil'},
+    ].map(k => `
+      <div>
+        <div style="font-size:11px;font-weight:700;color:#1d4ed8;text-transform:uppercase;">${k.l}</div>
+        <div class="${k.c}" style="font-size:20px;font-weight:800;margin-top:2px;">${k.v}</div>
+        ${k.sub ? '<div style="font-size:11px;color:#60a5fa;">'+k.sub+'</div>' : ''}
+      </div>`).join('');
+  }
+}
+
+function handleSubmit(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const inputs = getFormInp();
+  const prop = {
+    id:        EDIT_ID || uid(),
+    name:      fd.get('name'),
+    address:   fd.get('address'),
+    status:    fd.get('status'),
+    acquiredAt:fd.get('acquiredAt') || null,
+    createdAt: EDIT_ID ? (getProp(EDIT_ID)?.createdAt || new Date().toISOString().slice(0,10)) : new Date().toISOString().slice(0,10),
+    inputs,
+    events:          EDIT_ID ? (getProp(EDIT_ID)?.events || []) : [],
+    annualSnapshots: EDIT_ID ? (getProp(EDIT_ID)?.annualSnapshots || []) : [],
+  };
+  saveProp(prop);
+  EDIT_ID = null;
+  navTo('detail', prop.id);
+}
+
+// ============================================================
+// VIEW: DETAIL
+// ============================================================
+function vDetail() {
+  const p = getProp(PROP_ID);
+  if (!p) return '<p>Objekt nicht gefunden.</p>';
+  const {kpis, rows} = calcProp(p.inputs);
+  const badge = p.status === 'acquired'
+    ? '<span style="background:#dcfce7;color:#15803d;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;">✅ Im Bestand</span>'
+    : '<span style="background:#fef9c3;color:#854d0e;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;">🔍 In Prüfung</span>';
+  const trackTab = p.status === 'acquired'
+    ? `<button class="tab-btn ${ACTIVE_TAB==='tracking'?'active':''}" onclick="switchTab('tracking')">📁 Tracking</button>` : '';
+
+  return `
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn-secondary" onclick="navTo('dashboard')">← Zurück</button>
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <h1 style="font-size:22px;font-weight:800;color:#1e293b;">${p.name}</h1>
+            ${badge}
+          </div>
+          <div style="font-size:13px;color:#94a3b8;">${p.address||'—'}${p.inputs.baujahr?' · Baujahr '+p.inputs.baujahr:''}</div>
+        </div>
+      </div>
+      <button class="btn-secondary" onclick="editProp('${p.id}')">✏ Bearbeiten</button>
+    </div>
+
+    <!-- KPI row -->
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:24px;">
+      <div class="kpi"><div class="kpi-label">Gesamtinvestition</div><div class="kpi-value" style="font-size:16px;">${EUR(kpis.gesamt)}</div><div class="kpi-sub">NK: ${EUR(kpis.nk.total)}</div></div>
+      <div class="kpi"><div class="kpi-label">Eigenkapital</div><div class="kpi-value" style="font-size:16px;">${EUR(kpis.ek)}</div><div class="kpi-sub">Darlehen: ${EUR(kpis.darlehen)}</div></div>
+      <div class="kpi"><div class="kpi-label">Bruttomietrendite</div><div class="kpi-value" style="font-size:16px;">${PCT(kpis.brutto)}</div><div class="kpi-sub">Netto: ${PCT(kpis.netto)}</div></div>
+      <div class="kpi"><div class="kpi-label">CF/Monat (operativ)</div><div class="kpi-value ${cf(kpis.cfOp1)}" style="font-size:16px;">${EUR(kpis.cfOp1)}</div><div class="kpi-sub">ohne Tilgung & Steuer</div></div>
+      <div class="kpi"><div class="kpi-label">CF/Monat (netto)</div><div class="kpi-value ${cf(kpis.cfN1)}" style="font-size:16px;">${EUR(kpis.cfN1)}</div><div class="kpi-sub">inkl. Steuerwirkung</div></div>
+      <div class="kpi"><div class="kpi-label">Steuervorteil Jahr 1</div><div class="kpi-value" style="font-size:16px;color:#7c3aed;">${EUR(kpis.steuerersparnis1)}</div><div class="kpi-sub">AfA: ${EUR(kpis.afaJ)}${kpis.afaMöbelJ>0?' + Möbel: '+EUR(kpis.afaMöbelJ):''}/Jahr</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div style="border-bottom:2px solid #e5e7eb;margin-bottom:20px;display:flex;gap:0;">
+      <button class="tab-btn ${ACTIVE_TAB==='prognose'?'active':''}" onclick="switchTab('prognose')">📊 10-Jahres-Prognose</button>
+      <button class="tab-btn ${ACTIVE_TAB==='charts'?'active':''}" onclick="switchTab('charts')">📈 Diagramme</button>
+      <button class="tab-btn ${ACTIVE_TAB==='details'?'active':''}" onclick="switchTab('details')">🔍 Objektdetails</button>
+      ${trackTab}
+    </div>
+
+    <div id="tab-body">
+      ${renderTab(p, kpis, rows)}
+    </div>
+  </div>`;
+}
+
+function switchTab(tab) {
+  ACTIVE_TAB = tab;
+  destroyCharts();
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const p = getProp(PROP_ID);
+  const {kpis, rows} = calcProp(p.inputs);
+
+  // Update tab button state
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.textContent.includes('Prognose') && tab==='prognose') b.classList.add('active');
+    if (b.textContent.includes('Diagramme') && tab==='charts') b.classList.add('active');
+    if (b.textContent.includes('Objektdetails') && tab==='details') b.classList.add('active');
+    if (b.textContent.includes('Tracking') && tab==='tracking') b.classList.add('active');
+  });
+
+  document.getElementById('tab-body').innerHTML = renderTab(p, kpis, rows);
+  if (tab === 'charts') initCharts(rows);
+}
+
+function renderTab(p, kpis, rows) {
+  if (ACTIVE_TAB === 'prognose') return tabPrognose(rows);
+  if (ACTIVE_TAB === 'charts')   return tabCharts();
+  if (ACTIVE_TAB === 'details')  return tabDetails(p, kpis);
+  if (ACTIVE_TAB === 'tracking') return tabTracking(p, rows);
+  return '';
+}
+
+// ---- Prognose Tab ----
+function tabPrognose(rows) {
+  const hasMöbel = rows.some(r => r.afaMöbelJ > 0);
+  const hasEau   = rows.some(r => r.eauThisY  > 0);
+
+  const trs = rows.map(r => `
+    <tr>
+      <td style="font-weight:700;color:#1e293b;">Jahr ${r.year}</td>
+      <td>${EUR(r.miete)}</td>
+      <td style="color:#64748b;">${EUR(r.hausgeld)}</td>
+      <td style="color:#ea580c;">${EUR(r.zinsen)}</td>
+      <td style="color:#2563eb;">${EUR(r.tilgung)}</td>
+      <td class="${cf(r.cfOp)}" style="font-weight:600;">${EUR(r.cfOp)}</td>
+      ${hasMöbel ? `<td style="color:#7c3aed;">${EUR(r.afaMöbelJ)}</td>` : ''}
+      ${hasEau   ? `<td style="color:#b45309;">${r.eauThisY > 0 ? EUR(r.eauThisY) : '—'}</td>` : ''}
+      <td style="color:#7c3aed;">${EUR(r.steuerwirkung)}</td>
+      <td class="${cf(r.cfNetto)}" style="font-weight:700;">${EUR(r.cfNetto)}</td>
+      <td class="${cf(r.cumCF)}" style="font-weight:700;">${EUR(r.cumCF)}</td>
+      <td style="color:#64748b;">${EUR(r.restschuld)}</td>
+      <td>${EUR(r.immowert)}</td>
+      <td style="color:#1d4ed8;font-weight:700;">${EUR(r.eigenkapital)}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="card" style="overflow-x:auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;">Jahr</th>
+          <th>Kaltmiete</th><th>Hausgeld</th><th>Zinsen</th><th>Tilgung</th>
+          <th>CF operativ</th>
+          ${hasMöbel ? '<th style="color:#7c3aed;">AfA Möbel</th>' : ''}
+          ${hasEau   ? '<th style="color:#b45309;">EAU Jahr 1</th>' : ''}
+          <th>Steuerwirkung</th><th>CF netto</th>
+          <th>Kumuliert</th><th>Restschuld</th><th>Immowert</th><th>Eigenkapital</th>
+        </tr>
+      </thead>
+      <tbody>${trs}</tbody>
+    </table>
+    <div style="font-size:11px;color:#94a3b8;padding:12px 0 4px;line-height:1.7;">
+      <strong>CF operativ</strong> = Kaltmiete − Hausgeld − Zinsen − Sonstige (Tilgung nicht enthalten, da Vermögensbildung) &nbsp;·&nbsp;
+      <strong>Steuerwirkung</strong> = steuerliche Auswirkung der Einkünfte aus V&amp;V (negativ = Steuerlast, positiv = Steuervorteil)${hasEau ? ' &nbsp;·&nbsp; <strong>EAU</strong> = Erhaltungsaufwand (nur Jahr 1 steuerlich absetzbar)' : ''} &nbsp;·&nbsp;
+      <strong>Eigenkapital</strong> = geschätzter Immobilienwert − Restschuld
+    </div>
+  </div>`;
+}
+
+// ---- Charts Tab ----
+function tabCharts() {
+  return `
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div class="card">
+      <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;">Kumulierter Cashflow netto (10 Jahre)</h4>
+      <canvas id="chart-cum" height="70"></canvas>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div class="card">
+        <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;">Jährlicher Cashflow (operativ vs. netto)</h4>
+        <canvas id="chart-ann" height="160"></canvas>
+      </div>
+      <div class="card">
+        <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:16px;">Eigenkapitalentwicklung</h4>
+        <canvas id="chart-eq" height="160"></canvas>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initCharts(rows) {
+  const labels = rows.map(r => 'Jahr ' + r.year);
+  const fmtY = v => '€' + new Intl.NumberFormat('de-DE').format(Math.round(v));
+
+  const cumEl = document.getElementById('chart-cum');
+  if (cumEl) CHARTS.cum = new Chart(cumEl, {
+    type:'line',
+    data:{ labels, datasets:[{
+      label:'Kumulierter CF netto', data:rows.map(r=>Math.round(r.cumCF)),
+      borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)', fill:true, tension:0.35, pointRadius:5,
+    }]},
+    options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{ticks:{callback:fmtY}}} }
+  });
+
+  const annEl = document.getElementById('chart-ann');
+  if (annEl) CHARTS.ann = new Chart(annEl, {
+    type:'bar',
+    data:{ labels, datasets:[
+      {label:'CF operativ', data:rows.map(r=>Math.round(r.cfOp)), backgroundColor:'rgba(99,102,241,0.7)'},
+      {label:'CF netto',    data:rows.map(r=>Math.round(r.cfNetto)), backgroundColor:'rgba(34,197,94,0.7)'},
+    ]},
+    options:{ responsive:true, scales:{y:{ticks:{callback:fmtY}}}, plugins:{legend:{position:'bottom'}} }
+  });
+
+  const eqEl = document.getElementById('chart-eq');
+  if (eqEl) CHARTS.eq = new Chart(eqEl, {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'Immobilienwert', data:rows.map(r=>Math.round(r.immowert)), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.08)', fill:true, tension:0.3},
+      {label:'Restschuld',     data:rows.map(r=>Math.round(r.restschuld)), borderColor:'#f97316', backgroundColor:'rgba(249,115,22,0.08)', fill:true, tension:0.3},
+      {label:'Eigenkapital',   data:rows.map(r=>Math.round(r.eigenkapital)), borderColor:'#3b82f6', borderDash:[5,5], tension:0.3, fill:false},
+    ]},
+    options:{ responsive:true, scales:{y:{ticks:{callback:fmtY}}}, plugins:{legend:{position:'bottom'}} }
+  });
+}
+
+// ---- Details Tab ----
+function tabDetails(p, kpis) {
+  const inp = p.inputs;
+  const row = (l,v) => `<tr><td style="color:#64748b;padding:7px 0;font-size:13px;">${l}</td><td style="text-align:right;font-weight:600;font-size:13px;padding:7px 0;">${v}</td></tr>`;
+  const block = (title, rows) => `
+    <div class="card">
+      <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:12px;">${title}</h4>
+      <table style="border:none;">${rows}</table>
+    </div>`;
+
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    ${block('📋 Kaufnebenkosten',
+      row('Kaufpreis', EUR(inp.kaufpreis||0)) +
+      row('Grunderwerbsteuer ('+( inp.gewSteuerP??3.5)+'%)', EUR(kpis.nk.gew)) +
+      row('Maklercourtage ('+(inp.maklerP??3.57)+'%)', EUR(kpis.nk.makler)) +
+      row('Notar + Grundbuch ('+(inp.notarP??1.5)+'%)', EUR(kpis.nk.notar)) +
+      row('Nebenkosten gesamt', EUR(kpis.nk.total)) +
+      row('Gesamtinvestition', EUR(kpis.gesamt))
+    )}
+    ${block('🏦 Finanzierung',
+      row('Eigenkapital', EUR(kpis.ek)) +
+      row('Darlehen', EUR(kpis.darlehen)) +
+      row('Sollzins p.a.', PCT(inp.sollzinsP??3.5)) +
+      row('Tilgung p.a.', PCT(inp.tilgungP??2)) +
+      row('Annuität/Monat', EUR(kpis.darlehen * ((inp.sollzinsP??3.5) + (inp.tilgungP??2)) / 100 / 12))
+    )}
+    ${block('💶 Miet- & Kostenstruktur',
+      row('Kaltmiete/Monat', EUR(inp.kaltmiete||0)) +
+      row('Hausgeld/Monat', EUR(inp.hausgeld||0)) +
+      row('Leerstandsquote', PCT(inp.leerstandP??2)) +
+      row('Mietsteigerung p.a.', PCT(inp.mietsteigerungP??2)) +
+      row('Sonstige Kosten/Monat', EUR(inp.sonstigeKosten||0))
+    )}
+    ${block('📉 AfA & Steuern',
+      row('Gebäudeanteil', PCT(inp.gebäudeanteilP??80)) +
+      row('Gebäudewert (AfA-Basis)', EUR(((inp.kaufpreis||0) - (inp.kaufpreisMöbel||0)) * (inp.gebäudeanteilP??80) / 100)) +
+      row('AfA-Satz', PCT(inp.afaRateP??2)) +
+      row('AfA Gebäude/Jahr', EUR(kpis.afaJ)) +
+      (kpis.afaMöbelJ > 0 ? row('AfA Möbel/Jahr (÷ 10)', EUR(kpis.afaMöbelJ)) : '') +
+      (kpis.eau > 0 ? row('Erhaltungsaufwand (Jahr 1)', EUR(kpis.eau)) : '') +
+      (kpis.eauWarning ? row('⚠️ 15%-Grenzwert (§6 Nr.1a)', EUR(kpis.eauLimit)) : '') +
+      row('Grenzsteuersatz', PCT(inp.grenzsteuersatzP??42)) +
+      row('Steuervorteil Jahr 1', EUR(kpis.steuerersparnis1)) +
+      row('Wertsteigerung p.a.', PCT(inp.wertsteigerungP??2))
+    )}
+  </div>`;
+}
+
+// ---- Tracking Tab ----
+function tabTracking(p, rows) {
+  const events    = p.events || [];
+  const snapshots = p.annualSnapshots || [];
+  const today     = new Date().toISOString().slice(0,10);
+  const curYear   = new Date().getFullYear();
+  const startYear = p.acquiredAt ? parseInt(p.acquiredAt.slice(0,4)) : curYear;
+
+  const evRows = [...events].reverse().map((ev, ri) => {
+    const realIdx = events.length - 1 - ri;
+    return `<tr>
+      <td style="font-size:13px;color:#64748b;">${ev.date}</td>
+      <td><span style="background:#dbeafe;color:#1d4ed8;font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;">${ev.category}</span></td>
+      <td style="font-size:13px;">${ev.note||'—'}</td>
+      <td class="${ev.amount!==0?cf(ev.amount):''}" style="font-size:13px;font-weight:600;">${ev.amount!==0?EUR(ev.amount):'—'}</td>
+      <td><button onclick="delEvent('${p.id}',${realIdx})" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:14px;">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  const snapRows = snapshots.map((s, idx) => {
+    const projRow = rows.find(r => r.year === (s.year - startYear + 1));
+    const projCF  = projRow ? projRow.cfNetto : null;
+    const delta   = projCF !== null && s.actualCashflow !== undefined ? s.actualCashflow - projCF : null;
+    return `<tr>
+      <td style="font-weight:700;">${s.year}</td>
+      <td>${s.actualRent ? EUR(s.actualRent) : '—'}</td>
+      <td>${s.actualCosts ? EUR(s.actualCosts) : '—'}</td>
+      <td class="${s.actualCashflow!==undefined?cf(s.actualCashflow):''}" style="font-weight:600;">${s.actualCashflow!==undefined?EUR(s.actualCashflow):'—'}</td>
+      <td style="color:#94a3b8;">${projCF!==null?EUR(projCF):'—'}</td>
+      <td class="${delta!==null?cf(delta):''}" style="font-weight:600;">${delta!==null?(delta>=0?'+':'')+EUR(delta):'—'}</td>
+      <td>${s.valueEstimate?EUR(s.valueEstimate):'—'}</td>
+      <td><button onclick="delSnapshot('${p.id}',${idx})" style="background:none;border:none;cursor:pointer;color:#d1d5db;font-size:14px;">🗑</button></td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Event Log -->
+    <div class="card">
+      <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:14px;">📌 Ereignis-Log</h4>
+      <form onsubmit="addEvent(event,'${p.id}')" style="display:grid;grid-template-columns:130px 160px 1fr 120px auto;gap:10px;margin-bottom:16px;align-items:end;">
+        <div><label class="label">Datum</label><input name="ev-date" class="inp" type="date" value="${today}" required></div>
+        <div>
+          <label class="label">Kategorie</label>
+          <select name="ev-cat" class="inp">
+            <option>Mieterhöhung</option><option>Neuer Mieter</option><option>Leerstand</option>
+            <option>Renovierung</option><option>Versicherung</option><option>Hausgeld-Anpassung</option><option>Sonstiges</option>
+          </select>
+        </div>
+        <div><label class="label">Notiz</label><input name="ev-note" class="inp" type="text" placeholder="Beschreibung..."></div>
+        <div><label class="label">Betrag (€)</label><input name="ev-amount" class="inp" type="number" step="10" placeholder="0"></div>
+        <div style="padding-bottom:1px;"><button type="submit" class="btn-primary" style="white-space:nowrap;">+ Hinzufügen</button></div>
+      </form>
+      ${events.length > 0 ? `
+      <table>
+        <thead><tr>
+          <th style="text-align:left;">Datum</th><th style="text-align:left;">Kategorie</th>
+          <th style="text-align:left;">Notiz</th><th>Betrag</th><th></th>
+        </tr></thead>
+        <tbody>${evRows}</tbody>
+      </table>` : '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">Noch keine Ereignisse eingetragen</p>'}
+    </div>
+
+    <!-- Annual Snapshots -->
+    <div class="card">
+      <h4 style="font-size:13px;font-weight:700;color:#374151;margin-bottom:14px;">📅 Jahresabrechnung (Ist vs. Soll)</h4>
+      <form onsubmit="addSnapshot(event,'${p.id}')" style="display:grid;grid-template-columns:90px 1fr 1fr 1fr auto;gap:10px;margin-bottom:16px;align-items:end;">
+        <div><label class="label">Jahr</label><input name="sn-year" class="inp" type="number" min="2000" max="2050" value="${curYear}"></div>
+        <div><label class="label">Ist-Mieteinnahmen/Jahr (€)</label><input name="sn-rent" class="inp" type="number" step="100" placeholder="z.B. 14400"></div>
+        <div><label class="label">Ist-Kosten/Jahr (€)</label><input name="sn-costs" class="inp" type="number" step="100" placeholder="z.B. 5200"></div>
+        <div><label class="label">Geschätzter Wert (€)</label><input name="sn-value" class="inp" type="number" step="1000" placeholder="z.B. 480000"></div>
+        <div style="padding-bottom:1px;"><button type="submit" class="btn-primary" style="background:#16a34a;">+ Eintragen</button></div>
+      </form>
+      ${snapshots.length > 0 ? `
+      <table>
+        <thead><tr>
+          <th style="text-align:left;">Jahr</th><th>Ist-Miete</th><th>Ist-Kosten</th>
+          <th>Ist-CF</th><th>Soll-CF</th><th>Abweichung</th><th>Wertschätzung</th><th></th>
+        </tr></thead>
+        <tbody>${snapRows}</tbody>
+      </table>` : '<p style="font-size:13px;color:#94a3b8;text-align:center;padding:20px;">Noch keine Jahresabrechnungen</p>'}
+    </div>
+
+  </div>`;
+}
+
+function addEvent(e, propId) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const p  = getProp(propId);
+  p.events = p.events || [];
+  p.events.push({
+    date:     fd.get('ev-date'),
+    category: fd.get('ev-cat'),
+    note:     fd.get('ev-note') || '',
+    amount:   parseFloat(fd.get('ev-amount')) || 0,
+  });
+  saveProp(p);
+  navTo('detail', propId);
+  setTimeout(() => switchTab('tracking'), 30);
+}
+
+function delEvent(propId, idx) {
+  const p = getProp(propId);
+  p.events.splice(idx, 1);
+  saveProp(p);
+  navTo('detail', propId);
+  setTimeout(() => switchTab('tracking'), 30);
+}
+
+function addSnapshot(e, propId) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const p  = getProp(propId);
+  p.annualSnapshots = p.annualSnapshots || [];
+  const rent  = parseFloat(fd.get('sn-rent'))  || 0;
+  const costs = parseFloat(fd.get('sn-costs')) || 0;
+  p.annualSnapshots.push({
+    year:           parseInt(fd.get('sn-year')),
+    actualRent:     rent,
+    actualCosts:    costs,
+    actualCashflow: rent - costs,
+    valueEstimate:  parseFloat(fd.get('sn-value')) || 0,
+  });
+  p.annualSnapshots.sort((a,b) => a.year - b.year);
+  saveProp(p);
+  navTo('detail', propId);
+  setTimeout(() => switchTab('tracking'), 30);
+}
+
+function delSnapshot(propId, idx) {
+  const p = getProp(propId);
+  p.annualSnapshots.splice(idx, 1);
+  saveProp(p);
+  navTo('detail', propId);
+  setTimeout(() => switchTab('tracking'), 30);
+}
+
+// ============================================================
+// VIEW: PORTFOLIO
+// ============================================================
+function vPortfolio() {
+  const props = allProps().filter(p => p.status === 'acquired');
+
+  if (props.length === 0) return `
+    <div>
+      <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
+      <div class="card" style="text-align:center;padding:60px 20px;border:2px dashed #e2e8f0;">
+        <div style="font-size:48px;margin-bottom:12px;">📁</div>
+        <div style="font-size:15px;font-weight:600;color:#64748b;">Noch keine Objekte im Bestand</div>
+        <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Setze ein Objekt auf "Im Bestand", um es hier zu verfolgen.</div>
+      </div>
+    </div>`;
+
+  let totInvest=0, totKM=0, totCFN=0;
+  const calcCache = props.map(p => { const c=calcProp(p.inputs); totInvest+=c.kpis.gesamt; totKM+=(p.inputs.kaltmiete||0); totCFN+=c.kpis.cfN1; return c; });
+
+  const cards = props.map((p, i) => {
+    const {kpis, rows} = calcCache[i];
+    const ek10 = rows[rows.length-1]?.eigenkapital || 0;
+    return `
+    <div class="card" onclick="navTo('detail','${p.id}');setTimeout(()=>switchTab('tracking'),60)" style="cursor:pointer;transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='0 4px 16px rgba(37,99,235,0.1)'" onmouseout="this.style.boxShadow=''">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#1e293b;">${p.name}</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:2px;">${p.address||'—'}</div>
+          ${p.acquiredAt?'<div style="font-size:12px;color:#94a3b8;">Seit '+p.acquiredAt+'</div>':''}
+        </div>
+        <span style="background:#dcfce7;color:#15803d;font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;">Im Bestand</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Kaufpreis</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(p.inputs.kaufpreis||0)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Bruttomietrendite</div><div style="font-size:14px;font-weight:700;margin-top:2px;">${PCT(kpis.brutto)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">CF/Monat (netto)</div><div class="${cf(kpis.cfN1)}" style="font-size:14px;font-weight:700;margin-top:2px;">${EUR(kpis.cfN1)}</div></div>
+        <div><div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;">Eigenkapital (Jahr 10)</div><div style="font-size:14px;font-weight:700;margin-top:2px;color:#2563eb;">${EUR(ek10)}</div></div>
+      </div>
+      <div style="border-top:1px solid #f1f5f9;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;">
+        <span>${(p.events||[]).length} Ereignisse</span>
+        <span>${(p.annualSnapshots||[]).length} Jahresabrechnungen</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div>
+    <h1 style="font-size:22px;font-weight:800;color:#1e293b;margin-bottom:24px;">Portfolio</h1>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;">
+      <div class="kpi"><div class="kpi-label">Objekte im Bestand</div><div class="kpi-value">${props.length}</div></div>
+      <div class="kpi"><div class="kpi-label">Gesamtinvestition</div><div class="kpi-value" style="font-size:18px;">${EUR(totInvest)}</div></div>
+      <div class="kpi"><div class="kpi-label">Kaltmiete/Monat gesamt</div><div class="kpi-value" style="font-size:18px;">${EUR(totKM)}</div></div>
+      <div class="kpi"><div class="kpi-label">Portfolio CF/Monat (netto)</div><div class="kpi-value ${cf(totCFN)}" style="font-size:18px;">${EUR(totCFN)}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${cards}</div>
+  </div>`;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => navTo('dashboard'));
+</script>
+</body>
+</html>
