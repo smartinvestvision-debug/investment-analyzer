@@ -1068,7 +1068,7 @@ function vStrategy() {
   const s = STRAT_DATA;
   const taxRate = s.salary > 66000 ? 0.42 : 0.32;
   
-  // 1. Initial 10-Year Logic
+  // 1. Initial 10-Year Logic (Original Style)
   const hunterVol = s.price;
   const scalerVol = s.salary * 10;
 
@@ -1077,6 +1077,8 @@ function vStrategy() {
     const endVal = vol * Math.pow(1 + s.app/100, years);
     const remainingDebt = (vol * 0.9) - (vol * (s.tilt/100) * years);
     const saleCash = endVal - remainingDebt;
+    
+    // Operating calculations for the side-by-side cards
     const annAfA = vol * 0.8 * 0.02;
     const taxable = (vol * (yieldP/100)) - (vol * (s.int/100)) - annAfA;
     const taxEffectTotal = -(taxable * taxRate) * years;
@@ -1094,7 +1096,7 @@ function vStrategy() {
   const sc = calcDetailedExit(scalerVol, 4);
   const wealthGap = sc.equityGain - h.equityGain;
 
-  // 2. 30-Year "Sell & Re-Entry" Cascade Logic
+  // 2. 30-Year Cascade Logic
   let cycles = [];
   let currentCash = scalerVol * 0.1; 
   
@@ -1111,92 +1113,97 @@ function vStrategy() {
   }
 
   return `
-  <div style="max-width:1000px; font-family: 'Inter', sans-serif; color:#1e293b;">
+  <div style="max-width:1000px; font-family: sans-serif; color:#1e293b;">
     
     <!-- 1. ANALYSIS HEADER -->
-    <div class="card" style="margin-bottom:30px; background:#eff6ff; border:2px solid #bfdbfe; padding:25px; border-radius:16px;">
-      <h2 style="margin-top:0; color:#1e40af; font-size:22px; font-weight:800;">Ergebnis der Analyse</h2>
-      <p style="font-size:18px; margin-bottom:0; line-height:1.6;">
+    <div class="card" style="margin-bottom:25px; background:#eff6ff; border:1px solid #bfdbfe;">
+      <h3 style="margin-top:0; color:#1e40af;">Ergebnis der Analyse</h3>
+      <p style="font-size:16px; line-height:1.5;">
         Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren 
-        <b style="color:#2563eb; font-size:24px;">${EUR(wealthGap)} mehr Vermögen</b> auf als der Jäger. 
+        <b>${EUR(wealthGap)} mehr Vermögen</b> auf als der Jäger. 
         Die "Macht der Masse" schlägt die Suche nach dem maximalen Cashflow.
       </p>
     </div>
 
     <!-- 2. PARAMETERS -->
-    <div class="card" style="margin-bottom:30px; background:#f8fafc; border:1px solid #e2e8f0;">
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:15px; margin-bottom:15px;">
-        <div><label class="label">GEHALT (€)</label><input type="number" class="inp" value="${s.salary}" id="strat-salary"></div>
-        <div><label class="label">OBJEKTPREIS (€)</label><input type="number" class="inp" value="${s.price}" id="strat-price"></div>
-        <div><label class="label">WERTSTEIG. (%)</label><input type="number" class="inp" value="${s.app}" id="strat-app"></div>
-        <div><label class="label">ZINS (%)</label><input type="number" class="inp" value="${s.int}" id="strat-int"></div>
+    <div class="card" style="margin-bottom:25px; background:#f8fafc; border:1px solid #e2e8f0;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:15px; margin-bottom:15px;">
+        <div><label class="label">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${s.salary}" id="strat-salary"></div>
+        <div><label class="label">Ø OBJEKTPREIS (€)</label><input type="number" class="inp" value="${s.price}" id="strat-price"></div>
+        <div><label class="label">WERTSTEIGERUNG (%)</label><input type="number" class="inp" value="${s.app}" id="strat-app"></div>
+        <div><label class="label">SOLLZINS (%)</label><input type="number" class="inp" value="${s.int}" id="strat-int"></div>
         <div><label class="label">TILGUNG (%)</label><input type="number" class="inp" value="${s.tilt}" id="strat-tilt"></div>
         <div><label class="label">ALTER</label><input type="number" class="inp" value="${s.age}" id="strat-age"></div>
       </div>
-      <button onclick="runStrategyCalc()" class="btn-primary" style="width:100%; padding:12px; font-weight:bold;">Szenario aktualisieren</button>
+      <button onclick="runStrategyCalc()" class="btn-primary" style="width:100%; padding:12px; font-weight:700;">Szenario aktualisieren</button>
     </div>
 
-    <!-- 3. SIDE BY SIDE BATTLE -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:50px;">
-      <!-- JÄGER -->
-      <div class="card" style="border-top:5px solid #ef4444; position:relative;">
-        <div style="position:absolute; top:-12px; left:20px; background:#ef4444; color:white; padding:2px 10px; border-radius:10px; font-size:10px; font-weight:bold;">DER JÄGER</div>
-        <h4 style="margin:10px 0; color:#b91c1c;">Fokus: Cashflow (7%)</h4>
-        <div style="font-size:26px; font-weight:900; margin-bottom:15px;">${EUR(h.totalLiquid)}</div>
-        <div style="font-size:13px; color:#64748b; border-top:1px solid #f1f5f9; padding-top:10px;">
-           <div style="display:flex; justify-content:space-between;"><span>Wertzuwachs (10J):</span><b>+ ${EUR(h.app)}</b></div>
-           <div style="display:flex; justify-content:space-between;"><span>Tilgung (10J):</span><b>+ ${EUR(h.repayment)}</b></div>
-           <div style="display:flex; justify-content:space-between; color:${h.tax < 0 ? '#ef4444' : '#16a34a'};"><span>Steuer-Effekt:</span><b>${EUR(h.tax)}</b></div>
+    <!-- 3. ORIGINAL SIDE-BY-SIDE CARDS -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:40px;">
+      <!-- HUNTER -->
+      <div class="card" style="border-top:4px solid #ef4444;">
+        <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (7% Rendite)</h3>
+        <div style="background:#fef2f2; padding:15px; border-radius:6px; margin-bottom:15px;">
+           <span style="font-size:12px;">Cash nach Verkauf (10J):</span><br>
+           <strong style="font-size:22px;">${EUR(h.totalLiquid)}</strong>
+        </div>
+        <div style="font-size:14px; display:flex; flex-direction:column; gap:8px;">
+           <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(h.app)}</span></div>
+           <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(h.repayment)}</span></div>
+           <div style="display:flex;justify-content:space-between; color:${h.tax < 0 ? '#ef4444' : '#16a34a'};">
+             <span>Steuereffekt (10J):</span><span>${EUR(h.tax)}</span>
+           </div>
         </div>
       </div>
 
-      <!-- SKALIERER -->
-      <div class="card" style="border-top:5px solid #22c55e; background:#f0fdf4; position:relative;">
-        <div style="position:absolute; top:-12px; left:20px; background:#22c55e; color:white; padding:2px 10px; border-radius:10px; font-size:10px; font-weight:bold;">DER SKALIERER</div>
-        <h4 style="margin:10px 0; color:#15803d;">Fokus: Volumen (4%)</h4>
-        <div style="font-size:26px; font-weight:900; margin-bottom:15px;">${EUR(sc.totalLiquid)}</div>
-        <div style="font-size:13px; color:#15803d; border-top:1px solid #dcfce7; padding-top:10px;">
-           <div style="display:flex; justify-content:space-between;"><span>Wertzuwachs (10J):</span><b>+ ${EUR(sc.app)}</b></div>
-           <div style="display:flex; justify-content:space-between;"><span>Tilgung (10J):</span><b>+ ${EUR(sc.repayment)}</b></div>
-           <div style="display:flex; justify-content:space-between;"><span>Steuer-Vorteil:</span><b>+ ${EUR(sc.tax)}</b></div>
+      <!-- SCALER -->
+      <div class="card" style="border-top:4px solid #22c55e; background:#f0fdf4;">
+        <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (4% Rendite)</h3>
+        <div style="background:#dcfce7; padding:15px; border-radius:6px; margin-bottom:15px;">
+           <span style="font-size:12px;">Cash nach Verkauf (10J):</span><br>
+           <strong style="font-size:22px;">${EUR(sc.totalLiquid)}</strong>
+        </div>
+        <div style="font-size:14px; display:flex; flex-direction:column; gap:8px;">
+           <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(sc.app)}</span></div>
+           <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(sc.repayment)}</span></div>
+           <div style="display:flex;justify-content:space-between; color:#16a34a;">
+             <span>Steuervorteil (10J):</span><span>${EUR(sc.tax)}</span>
+           </div>
         </div>
       </div>
     </div>
 
-    <!-- 4. THE CASCADE -->
-    <div style="text-align:center; margin-bottom:40px;">
-        <h2 style="font-weight:900; font-size:28px; margin-bottom:10px;">Die 30-Jahre Reinvestitions-Kaskade</h2>
-        <p style="color:#64748b;">Was passiert, wenn du alle 10 Jahre steuerfrei verkaufst und alles reinvestierst?</p>
+    <!-- 4. THE CASCADE ROADMAP -->
+    <div style="text-align:center; margin-bottom:30px;">
+        <h2 style="font-weight:800; font-size:24px;">Die 30-Jahre Reinvestitions-Kaskade</h2>
+        <p style="color:#64748b;">Steuerfreier Verkauf und volle Reinvestition alle 10 Jahre.</p>
     </div>
 
     <div style="position:relative; padding-left:40px; border-left:4px solid #cbd5e1; margin-left:20px;">
       ${cycles.map((c, i) => `
-        <div style="position:relative; margin-bottom:60px;">
-          <div style="position:absolute; left:-52px; top:0; width:24px; height:24px; background:#16a34a; border:5px solid white; border-radius:50%; box-shadow: 0 0 0 4px #dcfce7;"></div>
+        <div style="position:relative; margin-bottom:50px;">
+          <div style="position:absolute; left:-52px; top:0; width:20px; height:20px; background:#16a34a; border:4px solid white; border-radius:50%; box-shadow: 0 0 0 4px #dcfce7;"></div>
           
-          <div class="card" style="margin-top:-10px; border:1px solid #e2e8f0; transition: transform 0.3s hover;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+          <div class="card" style="margin-top:-10px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
               <div>
-                <span style="background:#dcfce7; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:bold; color:#15803d;">STUFE ${i+1} | ALTER ${c.ageRange}</span>
-                <div style="margin-top:10px; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Portfoliovolumen (Kauf)</div>
-                <strong style="font-size:26px; color:#1e293b;">${EUR(c.buyingPower)}</strong>
+                <span style="background:#f1f5f9; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold; color:#475569;">STUFE ${i+1} | ALTER ${c.ageRange}</span>
+                <div style="margin-top:10px; color:#64748b; font-size:12px;">Investitions-Volumen (Kauf):</div>
+                <strong style="font-size:22px;">${EUR(c.buyingPower)}</strong>
               </div>
               <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Cash nach Verkauf</div>
-                <strong style="font-size:26px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
+                <div style="color:#64748b; font-size:12px;">Cash nach Verkauf:</div>
+                <strong style="font-size:22px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
               </div>
             </div>
-
             ${i < 2 ? `
-              <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px dashed #cbd5e1; font-size:13px; display:flex; align-items:center; gap:15px;">
-                <div style="font-size:24px;">🔄</div>
-                <div><b>Der Skalierungs-Effekt:</b> Dein Cash-Exit aus Jahr 10 wird die neue Anzahlung. Dein Volumen wächst von ${EUR(c.buyingPower)} auf <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b>.</div>
+              <div style="margin-top:15px; padding:10px; background:#eff6ff; border-radius:8px; font-size:13px; color:#1e40af;">
+                <b>Hebeleffekt:</b> Das Cash wird die neue Anzahlung für ein <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b> Portfolio.
               </div>
             ` : `
-              <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:30px; border-radius:15px; text-align:center;">
-                <div style="font-size:14px; opacity:0.7; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">Dein finales privates Cash-Vermögen</div>
-                <div style="font-size:48px; font-weight:900; color:#4ade80; text-shadow: 0 4px 10px rgba(0,0,0,0.3);">${EUR(c.cashAfterSale)}</div>
-                <p style="margin-top:15px; font-size:14px; opacity:0.8;">Steuerfrei realisiert und bereit für den Ruhestand.</p>
+              <div style="background:#1e293b; color:white; padding:20px; border-radius:12px; text-align:center; margin-top:15px;">
+                <div style="font-size:12px; opacity:0.7; text-transform:uppercase;">Finales Cash-Vermögen</div>
+                <div style="font-size:36px; font-weight:900; color:#4ade80;">${EUR(c.cashAfterSale)}</div>
               </div>
             `}
           </div>
