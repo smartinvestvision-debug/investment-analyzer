@@ -1062,10 +1062,9 @@ function vPortfolio() {
   </div>`;
 }
 // ============================================================
-// VIEW: STRATEGY CHECK (LIVE FIX)
+// VIEW: STRATEGY CHECK (CASCADING LOGIC FIX)
 // ============================================================
 function vStrategy() {
-  // 1. Hole die Werte direkt aus den DOM-Elementen (falls vorhanden), sonst aus dem State
   const salary = document.getElementById('strat-salary') ? parseFloat(document.getElementById('strat-salary').value) : STRAT_DATA.salary;
   const price = document.getElementById('strat-price') ? parseFloat(document.getElementById('strat-price').value) : STRAT_DATA.price;
   const appRate = document.getElementById('strat-app') ? parseFloat(document.getElementById('strat-app').value) : STRAT_DATA.app;
@@ -1078,7 +1077,6 @@ function vStrategy() {
   const hunterVol = price;
   const scalerVol = salary * 10;
 
-  // 2. Berechnungskern
   const calcStats = (vol, yieldP) => {
     const app = vol * (Math.pow(1 + appRate/100, years) - 1);
     const rep = vol * (tiltRate/100) * years;
@@ -1092,9 +1090,7 @@ function vStrategy() {
         app, 
         rep, 
         tax: taxEffect, 
-        total: app + rep + taxEffect,
-        endVal: vol * Math.pow(1 + appRate/100, years),
-        remDebt: (vol * 0.9) - rep
+        total: app + rep + taxEffect
     };
   };
 
@@ -1102,19 +1098,22 @@ function vStrategy() {
   const sc = calcStats(scalerVol, 4);
   const wealthGap = sc.total - h.total;
 
-  // 3. Kaskaden-Logik
+  // 3. UPDATED CASCADE LOGIC
   let cycles = [];
-  let currentCash = scalerVol * 0.1; 
+  let currentVolume = scalerVol; // Stufe 1 starts at 10x Salary
+
   for (let c = 1; c <= 3; c++) {
-    let pPower = currentCash / 0.20; 
-    let exit = calcStats(pPower, 4);
-    let cashOut = (exit.endVal - exit.remDebt) + exit.tax;
+    let stats = calcStats(currentVolume, 4);
+    let profit = stats.total;
+    
     cycles.push({
       ageRange: `${age + (c-1)*10} - ${age + c*10}`,
-      buyingPower: pPower,
-      cashAfterSale: cashOut
+      buyingPower: currentVolume,
+      cashAfterSale: profit,
+      nextVolume: currentVolume + profit // Stufe 2 is Stufe 1 Vol + Stufe 1 Profit
     });
-    currentCash = cashOut;
+    
+    currentVolume = currentVolume + profit;
   }
 
   return `
@@ -1122,7 +1121,6 @@ function vStrategy() {
     
     <h2 style="color:#1e293b; font-weight:900; margin-bottom:20px;">Strategie-Check: 10-Jahres-Fokus</h2>
 
-    <!-- INPUT PANEL -->
     <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px;">
       <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
         <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${salary}" id="strat-salary" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
@@ -1139,7 +1137,6 @@ function vStrategy() {
       </div>
     </div>
 
-    <!-- SIDE BY SIDE -->
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px;">
       <div style="background: white; border-radius: 15px; border-top: 5px solid #ef4444; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
         <h3 style="color:#b91c1c; font-size: 18px; margin: 0;">Der "Jäger" (7% Rendite)</h3>
@@ -1176,7 +1173,6 @@ function vStrategy() {
       </div>
     </div>
 
-    <!-- RESULT BOX -->
     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 15px; padding: 25px; margin-bottom: 50px;">
         <h4 style="color:#1e40af; margin-top:0; font-size: 18px;">Ergebnis der Analyse</h4>
         <p style="font-size: 14px; color:#1e293b; margin: 0; line-height:1.6;">
@@ -1184,7 +1180,6 @@ function vStrategy() {
         </p>
     </div>
 
-    <!-- CASCADE -->
     <div style="text-align:center; margin-bottom:40px;">
         <h2 style="font-weight:900; font-size:28px; margin-bottom:10px;">Die 30-Jahre Reinvestitions-Kaskade</h2>
     </div>
@@ -1201,18 +1196,18 @@ function vStrategy() {
                 <strong style="font-size:26px;">${EUR(c.buyingPower)}</strong>
               </div>
               <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px;">Cash nach Verkauf</div>
+                <div style="color:#64748b; font-size:12px;">Gesamt-Gewinn nach 10J</div>
                 <strong style="font-size:26px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
               </div>
             </div>
             ${i < 2 ? `
               <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px dashed #cbd5e1; font-size:13px; display:flex; align-items:center; gap:15px;">
-                <div><b>Der Skalierungs-Effekt:</b> Dein Cash-Exit wird die neue Anzahlung für <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b>.</div>
+                <div><b>Der Skalierungs-Effekt:</b> Dein Portfolio wächst durch Reinvestition auf <b style="color:#2563eb;">${EUR(c.nextVolume)}</b> in der nächsten Stufe.</div>
               </div>
             ` : `
               <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:30px; border-radius:15px; text-align:center;">
-                <div style="font-size:14px; opacity:0.7;">Finales Cash-Vermögen</div>
-                <div style="font-size:48px; font-weight:900; color:#4ade80;">${EUR(c.cashAfterSale)}</div>
+                <div style="font-size:14px; opacity:0.7;">Finales Portfoliovolumen</div>
+                <div style="font-size:48px; font-weight:900; color:#4ade80;">${EUR(c.nextVolume)}</div>
               </div>
             `}
           </div>
