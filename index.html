@@ -1038,50 +1038,102 @@ function vPortfolio() {
   </div>`;
 }
 function vStrategy() {
-  // Scenario Data
-  const waitYield = 7.0; // The "Perfect" deal
-  const waitVolume = 1;  // You only find one
-  const marketYield = 4.5; // Average Germany Market
-  const marketVolume = 5;  // You can buy many more
-  const avgPrice = 250000;
+  // 1. Pull dynamic values from the UI (with defaults)
+  const salary      = parseFloat(document.getElementById('strat-salary')?.value) || 36000;
+  const appreciationP = parseFloat(document.getElementById('strat-app')?.value)  || 2.5;
+  const interestP   = parseFloat(document.getElementById('strat-int')?.value)    || 3.5;
+  const repaymentP  = parseFloat(document.getElementById('strat-tilt')?.value)   || 2.0;
+  const avgPrice    = parseFloat(document.getElementById('strat-price')?.value)  || 250000;
+  
+  const years = 10;
+  const taxRate = salary > 66000 ? 0.42 : 0.32; // Simplified logic for income bracket
+
+  // 2. SCALER LOGIC: 1000% of Yearly Gross (10x Salary)
+  const scalerVolume = salary * 10;
+  const hunterVolume = avgPrice; // The hunter only ever gets 1 property
+
+  // 3. Wealth Calculations
+  const calcWealth = (vol) => {
+    const app = vol * (Math.pow(1 + appreciationP/100, years) - 1);
+    const rep = vol * (repaymentP/100) * years;
+    const tax = (vol * 0.02 * taxRate) * years; // AfA benefit
+    return { app, rep, tax, total: app + rep + tax };
+  };
+
+  const hunter = calcWealth(hunterVolume);
+  const scaler = calcWealth(scalerVolume);
 
   return `
-  <div>
-    <h1 style="font-size:24px;font-weight:800;color:#1e293b;margin-bottom:12px;">Opportunitätskosten-Analyse</h1>
-    <p style="color:#64748b; margin-bottom:24px;">Warum das Warten auf "7% Rendite" oft teurer ist als der Markteinstieg.</p>
+  <div style="max-width:1000px;">
+    <h1 style="font-size:24px;font-weight:800;color:#1e293b;margin-bottom:8px;">Strategie-Check: 10-Jahres-Fokus</h1>
+    
+    <!-- INPUT SECTION -->
+    <div class="card" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:15px; margin-bottom:25px; background:#f8fafc; border:1px solid #e2e8f0;">
+      <div>
+        <label class="label">Jahresgehalt Brutto (€)</label>
+        <input type="number" class="inp" value="${salary}" id="strat-salary" oninput="renderApp()">
+      </div>
+      <div>
+        <label class="label">Ø Objektpreis (€)</label>
+        <input type="number" class="inp" value="${avgPrice}" id="strat-price" oninput="renderApp()">
+      </div>
+      <div>
+        <label class="label">Wertsteigerung/Jahr (%)</label>
+        <input type="number" class="inp" value="${appreciationP}" id="strat-app" oninput="renderApp()">
+      </div>
+      <div>
+        <label class="label">Sollzins (%)</label>
+        <input type="number" class="inp" value="${interestP}" id="strat-int" oninput="renderApp()">
+      </div>
+      <div>
+        <label class="label">Tilgung (%)</label>
+        <input type="number" class="inp" value="${repaymentP}" id="strat-tilt" oninput="renderApp()">
+      </div>
+    </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-      <!-- Option A -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+      <!-- HUNTER -->
       <div class="card" style="border-top:4px solid #ef4444;">
-        <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (Warten auf 7%)</h3>
-        <p style="font-size:13px; color:#64748b; margin-bottom:16px;">Sucht 3 Jahre nach dem perfekten Deal.</p>
-        <div class="kpi-value" style="font-size:32px;">1 <span style="font-size:14px; color:#94a3b8;">Objekt</span></div>
-        <div style="margin-top:12px; font-size:14px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Gesamtvolumen:</span><strong>${EUR(avgPrice)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Mieteinnahmen/Jahr:</span><strong>${EUR(avgPrice * 0.07)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;color:#16a34a;"><span>Abgezahlter Wert (10J):</span><strong>${EUR(85000)}</strong></div>
+        <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (7% Rendite)</h3>
+        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Wartet 3 Jahre auf das perfekte Objekt.</p>
+        <div style="background:#fef2f2; padding:10px; border-radius:6px; margin-bottom:15px;">
+           <span style="font-size:12px;">Portfoliovolumen:</span><br>
+           <strong style="font-size:18px;">${EUR(hunterVolume)}</strong>
+        </div>
+        <div style="font-size:13px; display:flex; flex-direction:column; gap:6px;">
+           <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(hunter.app)}</span></div>
+           <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(hunter.rep)}</span></div>
+           <div style="display:flex;justify-content:space-between; font-weight:700; border-top:1px solid #fee2e2; padding-top:6px; margin-top:5px; color:#b91c1c;">
+             <span>Gesamt-Gewinn:</span><span>${EUR(hunter.total)}</span>
+           </div>
         </div>
       </div>
 
-      <!-- Option B -->
+      <!-- SCALER -->
       <div class="card" style="border-top:4px solid #22c55e; background:#f0fdf4;">
-        <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (Markt 4.5%)</h3>
-        <p style="font-size:13px; color:#64748b; margin-bottom:16px;">Kauft sofort den Marktdurchschnitt.</p>
-        <div class="kpi-value" style="font-size:32px;">${marketVolume} <span style="font-size:14px; color:#94a3b8;">Objekte</span></div>
-        <div style="margin-top:12px; font-size:14px;">
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Gesamtvolumen:</span><strong>${EUR(avgPrice * marketVolume)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Mieteinnahmen/Jahr:</span><strong>${EUR(avgPrice * marketVolume * 0.045)}</strong></div>
-          <div style="display:flex;justify-content:space-between;padding:4px 0;color:#16a34a;"><span>Abgezahlter Wert (10J):</span><strong>${EUR(320000)}</strong></div>
+        <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (4% Rendite)</h3>
+        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Nutzt 1000% Finanzierungskapazität sofort.</p>
+        <div style="background:#dcfce7; padding:10px; border-radius:6px; margin-bottom:15px;">
+           <span style="font-size:12px;">Portfoliovolumen (10x Gehalt):</span><br>
+           <strong style="font-size:18px;">${EUR(scalerVolume)}</strong>
+        </div>
+        <div style="font-size:13px; display:flex; flex-direction:column; gap:6px;">
+           <div style="display:flex;justify-content:space-between;"><span>Wertzuwachs:</span><span>${EUR(scaler.app)}</span></div>
+           <div style="display:flex;justify-content:space-between;"><span>Tilgung:</span><span>${EUR(scaler.rep)}</span></div>
+           <div style="display:flex;justify-content:space-between;"><span>Steuervorteil:</span><span>${EUR(scaler.tax)}</span></div>
+           <div style="display:flex;justify-content:space-between; font-weight:800; border-top:1px solid #bbf7d0; padding-top:6px; margin-top:5px; color:#15803d; font-size:16px;">
+             <span>Gesamt-Gewinn:</span><span>${EUR(scaler.total)}</span>
+           </div>
         </div>
       </div>
     </div>
 
     <div class="card" style="margin-top:24px; background:#eff6ff; border:1px solid #bfdbfe;">
-      <h3 style="font-weight:800; color:#1e40af; margin-bottom:10px;">Fazit der Hebelwirkung</h3>
-      <p style="font-size:14px; line-height:1.6; color:#1e3a8a;">
-        Wer auf die 7% Rendite wartet, optimiert den Cashflow eines <b>einzelnen</b> Objekts. 
-        Der Skalierer nutzt in der gleichen Zeit die <b>Tilgung durch den Mieter</b> bei 5 Objekten gleichzeitig. 
-        Selbst bei geringerer Rendite baut der Skalierer ca. <b>3.5x mehr Vermögen</b> durch den Zinseszins-Effekt der Tilgung und Wertsteigerung auf.
+      <h3 style="font-weight:800; color:#1e40af;">Ergebnis der Analyse</h3>
+      <p style="font-size:14px; color:#1e3a8a;">
+        Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren 
+        <b>${EUR(scaler.total - hunter.total)} mehr Vermögen</b> auf als der Jäger, der nur ein einzelnes, hochrentables Objekt besitzt. 
+        Die "Macht der Masse" schlägt die "Macht der Rendite".
       </p>
     </div>
   </div>`;
