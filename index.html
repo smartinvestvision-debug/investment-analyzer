@@ -1051,41 +1051,38 @@ function vPortfolio() {
 function vStrategy() {
   const s = STRAT_DATA; 
   const years = 10;
-  // Determine tax rate based on salary bracket
   const taxRate = s.salary > 66000 ? 0.42 : 0.32;
 
   const scalerVolume = s.salary * 10;
   const hunterVolume = s.price;
 
-  // Detailed Calculation Engine
   const calcWealth = (vol, yieldP) => {
-    // 1. Appreciation (Wertsteigerung)
     const app = vol * (Math.pow(1 + s.app/100, years) - 1);
-    
-    // 2. Repayment (Tilgung)
     const rep = vol * (s.tilt/100) * years;
     
-    // 3. Tax Effect (Steuervorteil/-last)
-    // Formula: (Rent - Interest - AfA) * TaxRate
+    // Detailed Tax Logic
     const annualRent = vol * (yieldP / 100);
     const annualInterest = vol * (s.int / 100);
-    const annualAfA = vol * 0.8 * 0.02; // 80% building share, 2% AfA
+    const annualAfA = vol * 0.8 * 0.02; 
     
     const taxableProfit = annualRent - annualInterest - annualAfA;
-    const taxEffectPerYear = -(taxableProfit * taxRate); // Negative profit = Positive refund
+    const taxEffectPerYear = -(taxableProfit * taxRate); 
     const totalTaxEffect = taxEffectPerYear * years;
 
     return { app, rep, tax: totalTaxEffect, total: app + rep + totalTaxEffect };
   };
 
-  const hunter = calcWealth(hunterVolume, 7); // 7% Yield
-  const scaler = calcWealth(scalerVolume, 4); // 4% Yield
+  const hunter = calcWealth(hunterVolume, 7); 
+  const scaler = calcWealth(scalerVolume, 4); 
+
+  // Calculate the gap for the info text
+  const wealthGap = scaler.total - hunter.total;
 
   return `
   <div style="max-width:1000px;">
     <h1 style="font-size:24px;font-weight:800;color:#1e293b;margin-bottom:8px;">Strategie-Check: 10-Jahres-Fokus</h1>
     
-    <!-- Input Section with Berechnen Button -->
+    <!-- INPUT SECTION -->
     <div class="card" style="margin-bottom:25px; background:#f8fafc; border:1px solid #e2e8f0;">
       <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:15px; margin-bottom:15px;">
         <div><label class="label">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${s.salary}" id="strat-salary"></div>
@@ -1101,6 +1098,7 @@ function vStrategy() {
       <!-- HUNTER CARD -->
       <div class="card" style="border-top:4px solid #ef4444;">
         <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (7% Rendite)</h3>
+        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Wartet lange auf das perfekte Einzelobjekt.</p>
         <div style="background:#fef2f2; padding:15px; border-radius:6px; margin-bottom:15px;">
            <span style="font-size:12px;">Portfoliovolumen:</span><br>
            <strong style="font-size:22px;">${EUR(hunterVolume)}</strong>
@@ -1120,6 +1118,7 @@ function vStrategy() {
       <!-- SCALER CARD -->
       <div class="card" style="border-top:4px solid #22c55e; background:#f0fdf4;">
         <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (4% Rendite)</h3>
+        <p style="font-size:12px; color:#64748b; margin-bottom:10px;">Nutzt 1000% Finanzierungskapazität sofort.</p>
         <div style="background:#dcfce7; padding:15px; border-radius:6px; margin-bottom:15px;">
            <span style="font-size:12px;">Portfoliovolumen (10x Gehalt):</span><br>
            <strong style="font-size:22px;">${EUR(scalerVolume)}</strong>
@@ -1135,6 +1134,17 @@ function vStrategy() {
            </div>
         </div>
       </div>
+    </div>
+
+    <!-- THE ANALYSIS BOX -->
+    <div class="card" style="margin-top:24px; background:#eff6ff; border:1px solid #bfdbfe;">
+      <h3 style="font-weight:800; color:#1e40af;">Ergebnis der Analyse</h3>
+      <p style="font-size:14px; color:#1e3a8a; line-height:1.5;">
+        Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren 
+        <b>${EUR(wealthGap)} mehr Vermögen</b> auf als der Jäger. 
+        Während der Jäger auf die "perfekte" Rendite wartet, nutzt der Skalierer den <b>Zinseszins-Effekt</b> und den <b>Steuerhebel</b> auf ein viel größeres Gesamtvermögen. 
+        Die "Macht der Masse" schlägt die Suche nach dem maximalen Cashflow.
+      </p>
     </div>
   </div>`;
 }
