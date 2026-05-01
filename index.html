@@ -275,6 +275,16 @@ function renderApp() {
   else if (VIEW === 'portfolio') el.innerHTML = vPortfolio();
   else if (VIEW === 'strategy')  el.innerHTML = vStrategy();
 }
+  function runStrategyCalc() {
+  STRAT_DATA = {
+    salary: parseFloat(document.getElementById('strat-salary').value) || 0,
+    price:  parseFloat(document.getElementById('strat-price').value)  || 0,
+    app:    parseFloat(document.getElementById('strat-app').value)    || 0,
+    int:    parseFloat(document.getElementById('strat-int').value)    || 0,
+    tilt:   parseFloat(document.getElementById('strat-tilt').value)   || 0
+  };
+  renderApp(); // Now we manually trigger the update
+}
 
 // ============================================================
 // VIEW: DASHBOARD
