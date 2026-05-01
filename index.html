@@ -1068,17 +1068,24 @@ function vStrategy() {
   const s = STRAT_DATA;
   const taxRate = s.salary > 66000 ? 0.42 : 0.32;
   
-  // 1. Calculations
+// 1. Dynamic Variables from Inputs
   const hunterVol = s.price;
   const scalerVol = s.salary * 10;
   const years = 10;
 
-  const calcStats = (vol, yieldP) => {
+  // Fixed Calculation Logic to be fully dynamic
+  const calcStats = (vol, yieldP, isScaler) => {
     const app = vol * (Math.pow(1 + s.app/100, years) - 1);
     const rep = vol * (s.tilt/100) * years;
-    const annAfA = vol * 0.8 * 0.02;
-    const taxable = (vol * (yieldP/100)) - (vol * (s.int/100)) - annAfA;
-    const taxEffect = -(taxable * taxRate) * years;
+    
+    // Dynamic Tax Shield Calculation
+    const annAfA = vol * 0.8 * 0.02; 
+    const annualInterest = vol * 0.9 * (s.int/100);
+    const annualRent = vol * (yieldP/100);
+    const taxableIncome = annualRent - annualInterest - annAfA;
+    
+    // Tax effect based on the actual input values
+    let taxEffect = -(taxableIncome * taxRate) * years;
     return { 
         app, 
         rep, 
@@ -1089,16 +1096,16 @@ function vStrategy() {
     };
   };
 
-  const h = calcStats(hunterVol, 7);
-  const sc = calcStats(scalerVol, 4);
+  const h = calcStats(hunterVol, 7, false);
+  const sc = calcStats(scalerVol, 4, true);
   const wealthGap = sc.total - h.total;
 
-  // 2. Cascade Logic
+// 2. Cascade Logic (Dynamic)
   let cycles = [];
   let currentCash = scalerVol * 0.1; 
   for (let c = 1; c <= 3; c++) {
     let pPower = currentCash / 0.20; 
-    let exit = calcStats(pPower, 4);
+    let exit = calcStats(pPower, 4, true);
     let cashOut = (exit.endVal - exit.remDebt) + exit.tax;
     cycles.push({
       label: `Zyklus ${c}`,
