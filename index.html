@@ -1130,7 +1130,7 @@ function vStrategy() {
       </div>
     </div>
 
-    <!-- SIDE BY SIDE -->
+    <!-- SIDE BY SIDE (As per image_3aed6a.png) -->
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px;">
       
       <!-- JÄGER -->
@@ -1178,24 +1178,42 @@ function vStrategy() {
         </p>
     </div>
 
-    <!-- CASCADE -->
-    <h3 style="text-align:center; font-weight:900; font-size:24px; margin-bottom:40px;">Die 30-Jahre Reinvestitions-Kaskade</h3>
+    <!-- CASCADE (RESTORED TO FULL VERSION) -->
+    <div style="text-align:center; margin-bottom:40px;">
+        <h2 style="font-weight:900; font-size:28px; margin-bottom:10px;">Die 30-Jahre Reinvestitions-Kaskade</h2>
+        <p style="color:#64748b;">Was passiert, wenn du alle 10 Jahre steuerfrei verkaufst und alles reinvestierst?</p>
+    </div>
+
     <div style="position:relative; padding-left:40px; border-left:4px solid #cbd5e1; margin-left:20px;">
       ${cycles.map((c, i) => `
-        <div style="position:relative; margin-bottom:50px;">
-          <div style="position:absolute; left:-52px; top:0; width:20px; height:20px; background:#16a34a; border:4px solid white; border-radius:50%; box-shadow: 0 0 0 4px #dcfce7;"></div>
-          <div style="background:white; padding:20px; border-radius:15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div style="position:relative; margin-bottom:60px;">
+          <div style="position:absolute; left:-52px; top:0; width:24px; height:24px; background:#16a34a; border:5px solid white; border-radius:50%; box-shadow: 0 0 0 4px #dcfce7;"></div>
+          
+          <div style="background:white; border-radius:15px; padding:25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-top:-10px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
               <div>
-                <span style="background:#f1f5f9; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold; color:#475569;">STUFE ${i+1} | ALTER ${c.ageRange}</span>
-                <div style="margin-top:10px; color:#64748b; font-size:12px;">Kauf-Volumen:</div>
-                <strong style="font-size:22px;">${EUR(c.buyingPower)}</strong>
+                <span style="background:#dcfce7; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:bold; color:#15803d;">STUFE ${i+1} | ALTER ${c.ageRange}</span>
+                <div style="margin-top:10px; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Portfoliovolumen (Kauf)</div>
+                <strong style="font-size:26px; color:#1e293b;">${EUR(c.buyingPower)}</strong>
               </div>
               <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px;">Cash-Exit (nach 10J):</div>
-                <strong style="font-size:22px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
+                <div style="color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Cash nach Verkauf</div>
+                <strong style="font-size:26px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
               </div>
             </div>
+
+            ${i < 2 ? `
+              <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px dashed #cbd5e1; font-size:13px; display:flex; align-items:center; gap:15px;">
+                <div style="font-size:24px;">🔄</div>
+                <div><b>Der Skalierungs-Effekt:</b> Dein Cash-Exit aus Jahr 10 wird die neue Anzahlung. Dein Volumen wächst von ${EUR(c.buyingPower)} auf <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b>.</div>
+              </div>
+            ` : `
+              <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:30px; border-radius:15px; text-align:center;">
+                <div style="font-size:14px; opacity:0.7; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">Dein finales privates Cash-Vermögen</div>
+                <div style="font-size:48px; font-weight:900; color:#4ade80; text-shadow: 0 4px 10px rgba(0,0,0,0.3);">${EUR(c.cashAfterSale)}</div>
+                <p style="margin-top:15px; font-size:14px; opacity:0.8;">Steuerfrei realisiert und bereit für den Ruhestand.</p>
+              </div>
+            `}
           </div>
         </div>
       `).join('')}
