@@ -1065,51 +1065,56 @@ function vPortfolio() {
 // VIEW: STRATEGY CHECK
 // ============================================================
 function vStrategy() {
-  const s = STRAT_DATA;
-  const taxRate = s.salary > 66000 ? 0.42 : 0.32;
-  
-// 1. Dynamic Variables from Inputs
-  const hunterVol = s.price;
-  const scalerVol = s.salary * 10;
-  const years = 10;
+  // 1. PULL LIVE VALUES FROM INPUTS
+  const salary = parseFloat(document.getElementById('strat-salary').value) || 0;
+  const price = parseFloat(document.getElementById('strat-price').value) || 0;
+  const appRate = parseFloat(document.getElementById('strat-app').value) || 0;
+  const intRate = parseFloat(document.getElementById('strat-int').value) || 0;
+  const tiltRate = parseFloat(document.getElementById('strat-tilt').value) || 0;
+  const age = parseFloat(document.getElementById('strat-age')?.value) || 30;
 
-  // Fixed Calculation Logic to be fully dynamic
-  const calcStats = (vol, yieldP, isScaler) => {
-    const app = vol * (Math.pow(1 + s.app/100, years) - 1);
-    const rep = vol * (s.tilt/100) * years;
+  const taxRate = salary > 66000 ? 0.42 : 0.32;
+  const years = 10;
+  
+  const hunterVol = price;
+  const scalerVol = salary * 10;
+
+  // 2. DYNAMIC CALCULATION LOGIC
+  const calcStats = (vol, yieldP) => {
+    const app = vol * (Math.pow(1 + appRate/100, years) - 1);
+    const rep = vol * (tiltRate/100) * years;
     
-    // Dynamic Tax Shield Calculation
     const annAfA = vol * 0.8 * 0.02; 
-    const annualInterest = vol * 0.9 * (s.int/100);
+    const annualInterest = vol * 0.9 * (intRate/100);
     const annualRent = vol * (yieldP/100);
     const taxableIncome = annualRent - annualInterest - annAfA;
     
-    // Tax effect based on the actual input values
-    let taxEffect = -(taxableIncome * taxRate) * years;
+    const taxEffect = -(taxableIncome * taxRate) * years;
+
     return { 
         app, 
         rep, 
         tax: taxEffect, 
         total: app + rep + taxEffect,
-        endVal: vol * Math.pow(1 + s.app/100, years),
+        endVal: vol * Math.pow(1 + appRate/100, years),
         remDebt: (vol * 0.9) - rep
     };
   };
 
-  const h = calcStats(hunterVol, 7, false);
-  const sc = calcStats(scalerVol, 4, true);
+  const h = calcStats(hunterVol, 7);
+  const sc = calcStats(scalerVol, 4);
   const wealthGap = sc.total - h.total;
 
-// 2. Cascade Logic (Dynamic)
+  // 3. CASCADE LOGIC
   let cycles = [];
   let currentCash = scalerVol * 0.1; 
   for (let c = 1; c <= 3; c++) {
     let pPower = currentCash / 0.20; 
-    let exit = calcStats(pPower, 4, true);
+    let exit = calcStats(pPower, 4);
     let cashOut = (exit.endVal - exit.remDebt) + exit.tax;
     cycles.push({
       label: `Zyklus ${c}`,
-      ageRange: `${s.age + (c-1)*10} - ${s.age + c*10}`,
+      ageRange: `${age + (c-1)*10} - ${age + c*10}`,
       buyingPower: pPower,
       cashAfterSale: cashOut
     });
@@ -1117,20 +1122,20 @@ function vStrategy() {
   }
 
   return `
-<div style="max-width:1000px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#1e293b; background-color: #f1f5f9; padding: 20px; border-radius: 10px;">
+  <div style="max-width:1000px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color:#1e293b; background-color: #f1f5f9; padding: 20px; border-radius: 10px;">
     
     <h2 style="color:#1e293b; font-weight:900; margin-bottom:20px;">Strategie-Check: 10-Jahres-Fokus</h2>
 
     <!-- INPUT PANEL -->
     <div style="background: white; padding: 25px; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 30px;">
       <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 15px;">
-        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${s.salary}" id="strat-salary" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
-        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">Ø OBJEKTPREIS (€)</label><input type="number" class="inp" value="${s.price}" id="strat-price" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
-        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">WERTSTEIGERUNG/JAHR (%)</label><input type="number" class="inp" value="${s.app}" id="strat-app" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
-        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">SOLLZINS (%)</label><input type="number" class="inp" value="${s.int}" id="strat-int" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
+        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">JAHRESGEHALT BRUTTO (€)</label><input type="number" class="inp" value="${salary}" id="strat-salary" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
+        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">Ø OBJEKTPREIS (€)</label><input type="number" class="inp" value="${price}" id="strat-price" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
+        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">WERTSTEIGERUNG/JAHR (%)</label><input type="number" class="inp" value="${appRate}" id="strat-app" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
+        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">SOLLZINS (%)</label><input type="number" class="inp" value="${intRate}" id="strat-int" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
       </div>
       <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">TILGUNG (%)</label><input type="number" class="inp" value="${s.tilt}" id="strat-tilt" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
+        <div><label class="label" style="font-size:10px; color:#94a3b8; font-weight:bold;">TILGUNG (%)</label><input type="number" class="inp" value="${tiltRate}" id="strat-tilt" style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; width: 100%;"></div>
         <div style="grid-column: span 3; display: flex; align-items: flex-end;">
             <button onclick="runStrategyCalc()" style="background: #1e293b; color: white; border: none; border-radius: 8px; padding: 10px 30px; cursor: pointer; font-weight: bold; width: 100%;">Aktualisieren</button>
         </div>
@@ -1156,7 +1161,6 @@ function vStrategy() {
         </div>
       </div>
 
-      <!-- SKALIERER -->
       <div style="background: white; border-radius: 15px; border-top: 5px solid #22c55e; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
         <h3 style="color:#15803d; font-size: 18px; margin: 0;">Der "Skalierer" (4% Rendite)</h3>
         <p style="color:#94a3b8; font-size: 11px; margin-bottom: 20px;">Nutzt 1000% Finanzierungskapazität sofort.</p>
@@ -1179,44 +1183,39 @@ function vStrategy() {
     <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 15px; padding: 25px; margin-bottom: 50px;">
         <h4 style="color:#1e40af; margin-top:0; font-size: 18px;">Ergebnis der Analyse</h4>
         <p style="font-size: 14px; color:#1e293b; margin: 0; line-height:1.6;">
-            Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren <b>${EUR(wealthGap)} mehr Vermögen</b> auf als der Jäger, der nur ein einzelnes, hochrentables Objekt besitzt. Die "Macht der Masse" schlägt die "Macht der Rendite".
+            Durch das Skalieren auf ein Volumen von 1000% deines Gehalts baust du innerhalb von 10 Jahren <b>${EUR(wealthGap)} mehr Vermögen</b> auf als der Jäger. Die "Macht der Masse" schlägt die "Macht der Rendite".
         </p>
     </div>
 
-    <!-- CASCADE (RESTORED TO FULL VERSION) -->
+    <!-- CASCADE -->
     <div style="text-align:center; margin-bottom:40px;">
         <h2 style="font-weight:900; font-size:28px; margin-bottom:10px;">Die 30-Jahre Reinvestitions-Kaskade</h2>
-        <p style="color:#64748b;">Was passiert, wenn du alle 10 Jahre steuerfrei verkaufst und alles reinvestierst?</p>
     </div>
 
     <div style="position:relative; padding-left:40px; border-left:4px solid #cbd5e1; margin-left:20px;">
       ${cycles.map((c, i) => `
         <div style="position:relative; margin-bottom:60px;">
           <div style="position:absolute; left:-52px; top:0; width:24px; height:24px; background:#16a34a; border:5px solid white; border-radius:50%; box-shadow: 0 0 0 4px #dcfce7;"></div>
-          
-          <div style="background:white; border-radius:15px; padding:25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-top:-10px; border:1px solid #e2e8f0;">
+          <div style="background:white; border-radius:15px; padding:25px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border:1px solid #e2e8f0;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
               <div>
                 <span style="background:#dcfce7; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:bold; color:#15803d;">STUFE ${i+1} | ALTER ${c.ageRange}</span>
-                <div style="margin-top:10px; color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Portfoliovolumen (Kauf)</div>
-                <strong style="font-size:26px; color:#1e293b;">${EUR(c.buyingPower)}</strong>
+                <div style="margin-top:10px; color:#64748b; font-size:12px;">Portfoliovolumen (Kauf)</div>
+                <strong style="font-size:26px;">${EUR(c.buyingPower)}</strong>
               </div>
               <div style="text-align:right;">
-                <div style="color:#64748b; font-size:12px; text-transform:uppercase; letter-spacing:1px;">Cash nach Verkauf</div>
+                <div style="color:#64748b; font-size:12px;">Cash nach Verkauf</div>
                 <strong style="font-size:26px; color:#16a34a;">+ ${EUR(c.cashAfterSale)}</strong>
               </div>
             </div>
-
             ${i < 2 ? `
               <div style="background:#f8fafc; padding:15px; border-radius:12px; border:1px dashed #cbd5e1; font-size:13px; display:flex; align-items:center; gap:15px;">
-                <div style="font-size:24px;">🔄</div>
-                <div><b>Der Skalierungs-Effekt:</b> Dein Cash-Exit aus Jahr 10 wird die neue Anzahlung. Dein Volumen wächst von ${EUR(c.buyingPower)} auf <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b>.</div>
+                <div><b>Der Skalierungs-Effekt:</b> Dein Cash-Exit wird die neue Anzahlung für <b style="color:#2563eb;">${EUR(cycles[i+1].buyingPower)}</b>.</div>
               </div>
             ` : `
               <div style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; padding:30px; border-radius:15px; text-align:center;">
-                <div style="font-size:14px; opacity:0.7; text-transform:uppercase; letter-spacing:2px; margin-bottom:10px;">Dein finales privates Cash-Vermögen</div>
-                <div style="font-size:48px; font-weight:900; color:#4ade80; text-shadow: 0 4px 10px rgba(0,0,0,0.3);">${EUR(c.cashAfterSale)}</div>
-                <p style="margin-top:15px; font-size:14px; opacity:0.8;">Steuerfrei realisiert und bereit für den Ruhestand.</p>
+                <div style="font-size:14px; opacity:0.7;">Finales Cash-Vermögen</div>
+                <div style="font-size:48px; font-weight:900; color:#4ade80;">${EUR(c.cashAfterSale)}</div>
               </div>
             `}
           </div>
