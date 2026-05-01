@@ -272,6 +272,7 @@ function renderApp() {
   else if (VIEW === 'form')      { el.innerHTML = vForm(); postRenderForm(); }
   else if (VIEW === 'detail')    { el.innerHTML = vDetail(); }
   else if (VIEW === 'portfolio') el.innerHTML = vPortfolio();
+  else if (VIEW === 'strategy')  el.innerHTML = vStrategy();
 }
 
 // ============================================================
@@ -1034,6 +1035,55 @@ function vPortfolio() {
       <div class="kpi"><div class="kpi-label">Portfolio CF/Monat (netto)</div><div class="kpi-value ${cf(totCFN)}" style="font-size:18px;">${EUR(totCFN)}</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">${cards}</div>
+  </div>`;
+}
+function vStrategy() {
+  // Scenario Data
+  const waitYield = 7.0; // The "Perfect" deal
+  const waitVolume = 1;  // You only find one
+  const marketYield = 4.5; // Average Germany Market
+  const marketVolume = 5;  // You can buy many more
+  const avgPrice = 250000;
+
+  return `
+  <div>
+    <h1 style="font-size:24px;font-weight:800;color:#1e293b;margin-bottom:12px;">Opportunitätskosten-Analyse</h1>
+    <p style="color:#64748b; margin-bottom:24px;">Warum das Warten auf "7% Rendite" oft teurer ist als der Markteinstieg.</p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <!-- Option A -->
+      <div class="card" style="border-top:4px solid #ef4444;">
+        <h3 style="font-weight:800; color:#b91c1c;">Der "Jäger" (Warten auf 7%)</h3>
+        <p style="font-size:13px; color:#64748b; margin-bottom:16px;">Sucht 3 Jahre nach dem perfekten Deal.</p>
+        <div class="kpi-value" style="font-size:32px;">1 <span style="font-size:14px; color:#94a3b8;">Objekt</span></div>
+        <div style="margin-top:12px; font-size:14px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Gesamtvolumen:</span><strong>${EUR(avgPrice)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Mieteinnahmen/Jahr:</span><strong>${EUR(avgPrice * 0.07)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;color:#16a34a;"><span>Abgezahlter Wert (10J):</span><strong>${EUR(85000)}</strong></div>
+        </div>
+      </div>
+
+      <!-- Option B -->
+      <div class="card" style="border-top:4px solid #22c55e; background:#f0fdf4;">
+        <h3 style="font-weight:800; color:#15803d;">Der "Skalierer" (Markt 4.5%)</h3>
+        <p style="font-size:13px; color:#64748b; margin-bottom:16px;">Kauft sofort den Marktdurchschnitt.</p>
+        <div class="kpi-value" style="font-size:32px;">${marketVolume} <span style="font-size:14px; color:#94a3b8;">Objekte</span></div>
+        <div style="margin-top:12px; font-size:14px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Gesamtvolumen:</span><strong>${EUR(avgPrice * marketVolume)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;"><span>Mieteinnahmen/Jahr:</span><strong>${EUR(avgPrice * marketVolume * 0.045)}</strong></div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;color:#16a34a;"><span>Abgezahlter Wert (10J):</span><strong>${EUR(320000)}</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px; background:#eff6ff; border:1px solid #bfdbfe;">
+      <h3 style="font-weight:800; color:#1e40af; margin-bottom:10px;">Fazit der Hebelwirkung</h3>
+      <p style="font-size:14px; line-height:1.6; color:#1e3a8a;">
+        Wer auf die 7% Rendite wartet, optimiert den Cashflow eines <b>einzelnen</b> Objekts. 
+        Der Skalierer nutzt in der gleichen Zeit die <b>Tilgung durch den Mieter</b> bei 5 Objekten gleichzeitig. 
+        Selbst bei geringerer Rendite baut der Skalierer ca. <b>3.5x mehr Vermögen</b> durch den Zinseszins-Effekt der Tilgung und Wertsteigerung auf.
+      </p>
+    </div>
   </div>`;
 }
 
